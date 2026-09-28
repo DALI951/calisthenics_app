@@ -99,9 +99,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     validator: (v) {
                       final value = v?.trim() ?? '';
-                      if (value.isEmpty) return 'Enter your email.';
-                      if (!value.contains('@'))
+                      if (value.isEmpty) {
+                        return 'Enter your email.';
+                      }
+                      if (!value.contains('@')) {
                         return 'That email looks wrong.';
+                      }
                       return null;
                     },
                   ),
