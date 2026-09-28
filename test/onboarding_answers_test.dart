@@ -4,18 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('OnboardingAnswers defaults', () {
-    test('sensible defaults: some experience, Mon/Tue/Thu/Fri, no equipment', () {
-      const a = OnboardingAnswers();
-      expect(a.experienceLevel, ExperienceLevel.some);
-      expect(a.trainingDays, {1, 2, 4, 5});
-      expect(a.equipment, {Equipment.none});
-      expect(a.goals, {TrainingGoal.consistency});
-      expect(a.hasTrainingPartner, isFalse);
-      expect(a.safetyAcknowledged, isFalse);
-      expect(a.preferredUnits, UnitsPreference.metric);
-      expect(a.notificationsEnabled, isTrue);
-      expect(a.completedAt, isNull);
-    });
+    test(
+      'sensible defaults: some experience, Mon/Tue/Thu/Fri, no equipment',
+      () {
+        const a = OnboardingAnswers();
+        expect(a.experienceLevel, ExperienceLevel.some);
+        expect(a.trainingDays, {1, 2, 4, 5});
+        expect(a.equipment, {Equipment.none});
+        expect(a.goals, {TrainingGoal.consistency});
+        expect(a.hasTrainingPartner, isFalse);
+        expect(a.safetyAcknowledged, isFalse);
+        expect(a.preferredUnits, UnitsPreference.metric);
+        expect(a.notificationsEnabled, isTrue);
+        expect(a.completedAt, isNull);
+      },
+    );
 
     test('json round-trips', () {
       final a = OnboardingAnswers(
@@ -49,7 +52,8 @@ void main() {
       );
       // "No equipment" default is replaced when real gear chosen.
       expect(
-        gear.copyWith(equipment: {Equipment.pullUpBar, Equipment.benchOrChair})
+        gear
+            .copyWith(equipment: {Equipment.pullUpBar, Equipment.benchOrChair})
             .equipmentLabel,
         'Pull-up bar, Bench / chair',
       );
@@ -72,10 +76,7 @@ void main() {
       const a = OnboardingAnswers(
         equipment: {Equipment.pullUpBar, Equipment.parallelBars},
       );
-      expect(
-        a.canRun([Equipment.pullUpBar, Equipment.parallelBars]),
-        isTrue,
-      );
+      expect(a.canRun([Equipment.pullUpBar, Equipment.parallelBars]), isTrue);
     });
   });
 }

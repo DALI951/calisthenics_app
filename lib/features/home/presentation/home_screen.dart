@@ -9,13 +9,17 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../exercises/data/exercise_library.dart';
+import '../../progress/domain/streak_calculator.dart';
+import '../../workout_session/data/workout_history_repository.dart';
+import '../../workout_session/domain/personal_records.dart';
+import '../../workout_session/presentation/workout_session_controller.dart';
 import '../../workouts/data/program_registry.dart';
 import '../../workouts/domain/workout_program.dart';
 
-/// Home answers: "What should I do today?"
+/// Home answers: "What should I do today?" (spec §40).
 ///
-/// Greeting → streak → today's plan → open plan → friend activity.
-/// Deliberately not overloaded (spec §40).
+/// Greeting → streak → today's workout with a real START button →
+/// quick stats → friend activity (honest empty state until Phase 6).
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -36,6 +40,25 @@ class HomeScreen extends ConsumerWidget {
     final isRestDay = today.type == ProgramDayType.rest;
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
 
+    final activeSession = ref.watch(workoutSessionControllerProvider);
+    final history =
+        ref.watch(workoutHistoryRepositoryProvider).value ?? const [];
+    final streak = StreakCalculator.currentStreak(history, DateTime.now());
+    final totalXp = history.fold(
+      0,
+      (a, s) => a + s.estimatedXp,
+    ); // Phase 10 real levels
+
+    void startToday() {
+      final ctrl = ref.read(workoutSessionControllerProvider.notifier);
+      if (activeSession != null) {
+        context.push('/app/workouts/session');
+        return;
+      }
+      ctrl.start(ProgramRegistry.beginner, today);
+      context.push('/app/workouts/session');
+    }
+
     return Scaffold(
       appBar: ShellAppBar(title: 'Calisthenics'),
       body: ListView(
@@ -47,11 +70,13 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'One workout at a time. Today: ${today.name}.',
+            activeSession != null
+                ? 'You have a workout in progress — pick up where you left off.'
+                : 'One workout at a time. Today: ${today.name}.',
             style: AppTypography.body.apply(color: secondary),
           ),
           const SizedBox(height: AppSpacing.xl),
-          // Today's plan card
+          // Today's plan card — the single recommended action (spec §40, §41).
           AppCard(
             highlight: !isRestDay,
             child: Column(
@@ -60,14 +85,17 @@ class HomeScreen extends ConsumerWidget {
                 Row(
                   children: [
                     AppChip(
-                      label: isRestDay ? 'Rest day' : today.focus ?? today.name,
-                      accent: !isRestDay,
-                      icon: isRestDay ? Icons.self_improvement : Icons.bolt,
-                    ),
-                    const Spacer(),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: AppColors.textSecondary,
+                      label: isRestDay
+                          ? 'Rest day'
+                          : activeSession != null
+                          ? 'In progress'
+                          : today.focus ?? today.name,
+                      accent: !isRestDay && activeSession == null,
+                      icon: activeSession != null
+                          ? Icons.play_circle_outline
+                          : isRestDay
+                          ? Icons.self_improvement
+                          : Icons.bolt,
                     ),
                   ],
                 ),
@@ -120,36 +148,54 @@ class HomeScreen extends ConsumerWidget {
                       ),
                 ],
                 const SizedBox(height: AppSpacing.lg),
-                FilledButton.tonalIcon(
-                  onPressed: () => context.go('/app/workouts'),
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Open today\'s plan'),
+                FilledButton.icon(
+                  onPressed: startToday,
+                  icon: Icon(
+                    activeSession != null
+                        ? Icons.play_arrow
+                        : isRestDay
+                        ? Icons.self_improvement
+                        : Icons.play_arrow,
+                  ),
+                  label: Text(
+                    activeSession != null
+                        ? 'Resume workout'
+                        : isRestDay
+                        ? 'See today\'s recovery'
+                        : 'Start today\'s workout',
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          // Quick stats row
+          // Quick stats row (real values from history).
           Row(
             children: [
               Expanded(
                 child: AppCard(
                   padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: StatBlock(value: '0', label: 'Day streak'),
+                  child: StatBlock(value: '$streak', label: 'Day streak'),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: AppCard(
                   padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: StatBlock(value: '0', label: 'Workouts'),
+                  child: StatBlock(
+                    value: '${history.length}',
+                    label: 'Workouts',
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: AppCard(
                   padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: StatBlock(value: 'Lv 1', label: 'Level'),
+                  child: StatBlock(
+                    value: 'Lv ${LevelForXp.levelFor(totalXp)}',
+                    label: 'Level ($totalXp XP)',
+                  ),
                 ),
               ),
             ],
@@ -177,5 +223,14 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Minimal level curve (Phase 10 fleshes out achievements/XP fully).
+abstract final class LevelForXp {
+  static int levelFor(int xp) {
+    if (xp < 0) return 1;
+    // 100 XP per level, gentle curve.
+    return (xp ~/ 100) + 1;
   }
 }

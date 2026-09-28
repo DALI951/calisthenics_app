@@ -15,6 +15,9 @@ import '../../features/friends/presentation/friends_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/progress/presentation/progress_screen.dart';
+import '../../features/workout_session/presentation/rest_day_screen.dart';
+import '../../features/workout_session/presentation/workout_session_screen.dart';
+import '../../features/workout_session/presentation/workout_summary_screen.dart';
 import '../../features/workouts/presentation/workouts_screen.dart';
 import 'app_shell.dart';
 
@@ -66,10 +69,14 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = GoRouterNotifier(ref);
   ref.onDispose(notifier.dispose);
 
+  // Root navigator: session/summary push OVER the shell (no tabs mid-set).
+  final rootKey = GlobalKey<NavigatorState>();
+
   return GoRouter(
     initialLocation: '/app/home',
     refreshListenable: notifier,
     redirect: notifier.redirect,
+    navigatorKey: rootKey,
     routes: [
       GoRoute(
         path: '/auth',
@@ -124,6 +131,25 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => ExerciseDetailScreen(
                       exerciseId: state.pathParameters['exerciseId']!,
                     ),
+                  ),
+                  // Full-screen workout session (over the shell, §14).
+                  GoRoute(
+                    path: 'session',
+                    name: 'session',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => const WorkoutSessionScreen(),
+                  ),
+                  GoRoute(
+                    path: 'session/summary',
+                    name: 'summary',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => const WorkoutSummaryScreen(),
+                  ),
+                  GoRoute(
+                    path: 'rest-day',
+                    name: 'restDay',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => const RestDayScreen(),
                   ),
                 ],
               ),

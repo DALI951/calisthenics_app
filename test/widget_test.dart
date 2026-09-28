@@ -49,10 +49,19 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
-    // Tab shell is visible with today's plan.
+    // Tab shell is visible with today's plan. The primary button label
+    // depends on the day type: training day → start, rest day → recovery.
     expect(find.text('Calisthenics'), findsOneWidget);
     expect(find.text('Workouts'), findsWidgets);
-    expect(find.text('Open today\'s plan'), findsOneWidget);
+    final hasPrimaryAction =
+        find.text('Start today\'s workout').evaluate().isNotEmpty ||
+        find.text('See today\'s recovery').evaluate().isNotEmpty ||
+        find.text('Resume workout').evaluate().isNotEmpty;
+    expect(
+      hasPrimaryAction,
+      isTrue,
+      reason: 'home should show the primary action',
+    );
   });
 
   testWidgets('signing in with a wrong password shows a safe error', (
@@ -131,7 +140,8 @@ void main() {
     // Fresh install: onboarding NOT completed.
     SharedPreferences.setMockInitialValues({});
 
-    final repo = FakeAuthRepository()..seedAccount('dali@test.com', 'secret123');
+    final repo = FakeAuthRepository()
+      ..seedAccount('dali@test.com', 'secret123');
 
     await tester.pumpWidget(buildApp(repo));
     await tester.pumpAndSettle();

@@ -5,3 +5,7 @@ analyzer:
     - build/**
     - android/**
     - ios/**
+    # Generated code (build_runner) — lint issues there are codegen's,
+    # not ours; CI analyze should only flag hand-written code.
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'

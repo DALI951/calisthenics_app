@@ -8,19 +8,33 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../exercises/data/exercise_library.dart';
+import '../../workout_session/presentation/workout_session_controller.dart';
 import '../../workouts/data/program_registry.dart';
 import '../../workouts/domain/workout_program.dart';
 
-/// Workouts tab: current program, today highlighted, full week, exercise
-/// library entry. The recorded workout mode (sets, rest timer, summary)
-/// replaces the availability card in Phase 3.
+/// Workouts tab: current program with a real START/RESUME action (spec §41
+/// — the recommended action is obvious), this week with today highlighted,
+/// and the exercise library entry.
 class WorkoutsScreen extends ConsumerWidget {
   const WorkoutsScreen({super.key});
+
+  void _startDay(BuildContext context, WidgetRef ref, ProgramDay day) {
+    final ctrl = ref.read(workoutSessionControllerProvider.notifier);
+    if (ref.read(workoutSessionControllerProvider) != null) {
+      context.push('/app/workouts/session');
+      return;
+    }
+    ctrl.start(ProgramRegistry.beginner, day);
+    context.push('/app/workouts/session');
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final program = ProgramRegistry.beginner;
     final todaySlot = DateTime.now().weekday;
+    final today = program.dayAt(todaySlot);
+    final isRestDay = today.type == ProgramDayType.rest;
+    final activeSession = ref.watch(workoutSessionControllerProvider);
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Scaffold(
@@ -36,9 +50,11 @@ class WorkoutsScreen extends ConsumerWidget {
                 Row(
                   children: [
                     AppChip(
-                      label: 'Program',
-                      accent: true,
-                      icon: Icons.fitness_center,
+                      label: isRestDay ? 'Rest day' : 'Today: ${today.name}',
+                      accent: !isRestDay,
+                      icon: isRestDay
+                          ? Icons.self_improvement
+                          : Icons.fitness_center,
                     ),
                     const Spacer(),
                     Text(
@@ -55,33 +71,30 @@ class WorkoutsScreen extends ConsumerWidget {
                   style: AppTypography.bodySmall.apply(color: secondary),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                // Honest availability marker (spec §81: no dead buttons).
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+                if (activeSession != null) ...[
+                  Text(
+                    'Workout in progress — ${activeSession.dayName}',
+                    style: AppTypography.bodySmall.apply(
+                      color: AppColors.accentLight,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.schedule,
-                        size: 18,
-                        color: AppColors.warning,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          'Recorded workout mode (sets, rest timer, summary) '
-                          'ships in the next build phase.',
-                          style: AppTypography.bodySmall.apply(
-                            color: secondary,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                FilledButton.icon(
+                  onPressed: () => _startDay(context, ref, today),
+                  icon: Icon(
+                    activeSession != null
+                        ? Icons.play_arrow
+                        : isRestDay
+                        ? Icons.self_improvement
+                        : Icons.fitness_center,
+                  ),
+                  label: Text(
+                    activeSession != null
+                        ? 'Resume workout'
+                        : isRestDay
+                        ? 'View rest day'
+                        : 'Start today\'s workout',
                   ),
                 ),
               ],
@@ -138,7 +151,17 @@ class WorkoutsScreen extends ConsumerWidget {
           ...program.days.map(
             (day) => Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _DayCard(day: day, isToday: day.dayNumber == todaySlot),
+              child: _DayCard(
+                day: day,
+                isToday: day.dayNumber == todaySlot,
+                onTap: () {
+                  if (day.type == ProgramDayType.rest) {
+                    context.push('/app/workouts/rest-day');
+                  } else {
+                    _startDay(context, ref, day);
+                  }
+                },
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xxl),
@@ -149,10 +172,15 @@ class WorkoutsScreen extends ConsumerWidget {
 }
 
 class _DayCard extends StatelessWidget {
-  const _DayCard({required this.day, required this.isToday});
+  const _DayCard({
+    required this.day,
+    required this.isToday,
+    required this.onTap,
+  });
 
   final ProgramDay day;
   final bool isToday;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -161,10 +189,19 @@ class _DayCard extends StatelessWidget {
 
     return AppCard(
       highlight: isToday && !isRest,
-      onTap: null,
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isRest) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            const Icon(
+              Icons.self_improvement,
+              size: 20,
+              color: AppColors.success,
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+          ],
           Row(
             children: [
               Text(
