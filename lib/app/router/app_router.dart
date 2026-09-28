@@ -9,6 +9,8 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/challenges/presentation/challenges_screen.dart';
+import '../../features/exercises/presentation/exercise_detail_screen.dart';
+import '../../features/exercises/presentation/exercise_search_screen.dart';
 import '../../features/friends/presentation/friends_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -110,6 +112,20 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/app/workouts',
                 name: 'workouts',
                 builder: (context, state) => const WorkoutsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'exercises',
+                    name: 'library',
+                    builder: (context, state) => const ExerciseSearchScreen(),
+                  ),
+                  GoRoute(
+                    path: 'exercises/:exerciseId',
+                    name: 'exerciseDetail',
+                    builder: (context, state) => ExerciseDetailScreen(
+                      exerciseId: state.pathParameters['exerciseId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

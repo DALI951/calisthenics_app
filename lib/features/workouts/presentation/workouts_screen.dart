@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_shell.dart';
 import '../../../app/theme/app_colors.dart';
@@ -10,8 +11,9 @@ import '../../exercises/data/exercise_library.dart';
 import '../../workouts/data/program_registry.dart';
 import '../../workouts/domain/workout_program.dart';
 
-/// Workouts tab: current program, today highlighted, full week, honest
-/// "workout mode" status until the session engine lands (Phase 3).
+/// Workouts tab: current program, today highlighted, full week, exercise
+/// library entry. The recorded workout mode (sets, rest timer, summary)
+/// replaces the availability card in Phase 3.
 class WorkoutsScreen extends ConsumerWidget {
   const WorkoutsScreen({super.key});
 
@@ -86,14 +88,58 @@ class WorkoutsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          ...program.days.map(
-            (day) => _DayCard(day: day, isToday: day.dayNumber == todaySlot),
+          SectionHeader(
+            title: 'Exercise library',
+            actionLabel: 'Open',
+            onAction: () => context.push('/app/workouts/exercises'),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Exercise library: ${ExerciseLibrary.all.length} movements, '
-            'all with technique cues and progressions.',
-            style: AppTypography.bodySmall.apply(color: secondary),
+          AppCard(
+            onTap: () => context.push('/app/workouts/exercises'),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.menu_book_outlined,
+                    color: AppColors.accentLight,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${ExerciseLibrary.all.length} movements',
+                        style: AppTypography.body,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Search, filter by muscle & gear, technique cues, '
+                        'progressions, favorites.',
+                        style: AppTypography.caption.apply(color: secondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 20),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SectionHeader(title: 'This week'),
+          ...program.days.map(
+            (day) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _DayCard(day: day, isToday: day.dayNumber == todaySlot),
+            ),
           ),
           const SizedBox(height: AppSpacing.xxl),
         ],
@@ -167,13 +213,16 @@ class _DayCard extends StatelessWidget {
               runSpacing: AppSpacing.xs,
               children: day.exercises
                   .map(
-                    (e) => Chip(
+                    (e) => ActionChip(
                       label: Text(
                         '${ExerciseLibrary.byId(e.exerciseId)?.name ?? e.exerciseId}: ${e.targetLabel}',
                       ),
                       visualDensity: VisualDensity.compact,
                       labelStyle: AppTypography.bodySmall.apply(
                         color: secondary,
+                      ),
+                      onPressed: () => context.push(
+                        '/app/workouts/exercises/${e.exerciseId}',
                       ),
                     ),
                   )

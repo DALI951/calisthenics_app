@@ -124,4 +124,62 @@ void main() {
 
     expect(find.text('Welcome back'), findsOneWidget);
   });
+
+  testWidgets('onboarding wizard completes the full flow into the shell', (
+    tester,
+  ) async {
+    // Fresh install: onboarding NOT completed.
+    SharedPreferences.setMockInitialValues({});
+
+    final repo = FakeAuthRepository()..seedAccount('dali@test.com', 'secret123');
+
+    await tester.pumpWidget(buildApp(repo));
+    await tester.pumpAndSettle();
+
+    // Sign in lands on the first onboarding step.
+    await tester.enterText(find.byType(TextFormField).at(0), 'dali@test.com');
+    await tester.enterText(find.byType(TextFormField).at(1), 'secret123');
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+    await tester.pumpAndSettle();
+    expect(find.text('Experience level'), findsOneWidget);
+
+    // Step 1: pick "Never trained".
+    await tester.tap(find.text('Never trained'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Step 2: days — default selection kept, continue.
+    expect(find.text('Preferred training days'), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Step 3: equipment — select pull-up bar.
+    expect(find.text('Equipment at home'), findsOneWidget);
+    await tester.tap(find.text('Pull-up bar'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Step 4: goals — one is preselected (consistency); continue.
+    expect(find.text('Your goals'), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Step 5: partner & setup — check the safety acknowledgement.
+    expect(find.text('Partner & setup'), findsOneWidget);
+    await tester.ensureVisible(find.text('Safety acknowledgement'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Safety acknowledgement'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Step 6: recap → start.
+    expect(find.text('Your plan is ready'), findsOneWidget);
+    await tester.tap(find.text('Start training'));
+    await tester.pumpAndSettle();
+
+    // Landed in the shell.
+    expect(find.text('Calisthenics'), findsOneWidget);
+    expect(find.text('Workouts'), findsWidgets);
+  });
 }
