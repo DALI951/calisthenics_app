@@ -1,0 +1,187 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../app/router/app_shell.dart';
+import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_spacing.dart';
+import '../../../app/theme/app_typography.dart';
+import '../../../core/widgets/app_card.dart';
+import '../../exercises/data/exercise_library.dart';
+import '../../workouts/data/program_registry.dart';
+import '../../workouts/domain/workout_program.dart';
+
+/// Workouts tab: current program, today highlighted, full week, honest
+/// "workout mode" status until the session engine lands (Phase 3).
+class WorkoutsScreen extends ConsumerWidget {
+  const WorkoutsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final program = ProgramRegistry.beginner;
+    final todaySlot = DateTime.now().weekday;
+    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Scaffold(
+      appBar: ShellAppBar(title: 'Workouts'),
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: [
+          AppCard(
+            highlight: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    AppChip(
+                      label: 'Program',
+                      accent: true,
+                      icon: Icons.fitness_center,
+                    ),
+                    const Spacer(),
+                    Text(
+                      'v${program.version}',
+                      style: AppTypography.caption.apply(color: secondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(program.name, style: AppTypography.title),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  program.description ?? '',
+                  style: AppTypography.bodySmall.apply(color: secondary),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                // Honest availability marker (spec §81: no dead buttons).
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule,
+                        size: 18,
+                        color: AppColors.warning,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Recorded workout mode (sets, rest timer, summary) '
+                          'ships in the next build phase.',
+                          style: AppTypography.bodySmall.apply(
+                            color: secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ...program.days.map(
+            (day) => _DayCard(day: day, isToday: day.dayNumber == todaySlot),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Exercise library: ${ExerciseLibrary.all.length} movements, '
+            'all with technique cues and progressions.',
+            style: AppTypography.bodySmall.apply(color: secondary),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCard extends StatelessWidget {
+  const _DayCard({required this.day, required this.isToday});
+
+  final ProgramDay day;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
+    final isRest = day.type == ProgramDayType.rest;
+
+    return AppCard(
+      highlight: isToday && !isRest,
+      onTap: null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Day ${day.dayNumber}',
+                style: AppTypography.label.apply(
+                  color: isToday ? AppColors.accentLight : secondary,
+                ),
+              ),
+              if (isToday) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppChip(label: 'Today', accent: true),
+              ],
+              if (isRest) ...[
+                const Spacer(),
+                AppChip(label: 'Rest', icon: Icons.self_improvement),
+              ] else ...[
+                const Spacer(),
+                AppChip(
+                  label: '${day.exercises.length} moves',
+                  icon: Icons.fitness_center,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            day.name,
+            style: AppTypography.title.copyWith(
+              fontSize: 17,
+              color: isRest
+                  ? secondary
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          if (day.focus != null) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              day.focus!,
+              style: AppTypography.caption.apply(color: secondary),
+            ),
+          ],
+          if (!isRest && day.exercises.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: day.exercises
+                  .map(
+                    (e) => Chip(
+                      label: Text(
+                        '${ExerciseLibrary.byId(e.exerciseId)?.name ?? e.exerciseId}: ${e.targetLabel}',
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: AppTypography.bodySmall.apply(
+                        color: secondary,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
