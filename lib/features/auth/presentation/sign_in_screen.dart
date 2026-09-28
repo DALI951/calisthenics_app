@@ -35,14 +35,27 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    await _run(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .signIn(email: _email.text.trim(), password: _password.text),
+    );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    await _run(
+      () => ref.read(authControllerProvider.notifier).signInWithGoogle(),
+    );
+  }
+
+  /// Shared error-handling for all sign-in paths.
+  Future<void> _run(Future<void> Function() action) async {
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await ref
-          .read(authControllerProvider.notifier)
-          .signIn(email: _email.text.trim(), password: _password.text);
+      await action();
       // Router redirect handles navigation on auth state change.
     } on AppFailure catch (e) {
       setState(() => _error = e);
@@ -147,6 +160,32 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               onPressed: _submitting ? null : _submit,
               loading: _submitting,
               icon: Icons.arrow_forward,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  child: Text(
+                    'or',
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.apply(color: secondary),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            OutlinedButton.icon(
+              onPressed: _submitting ? null : _signInWithGoogle,
+              icon: const Icon(Icons.g_mobiledata),
+              label: const Text('Continue with Google'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             TextButton(

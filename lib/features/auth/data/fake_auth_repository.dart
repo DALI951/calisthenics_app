@@ -84,6 +84,17 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> signInWithGoogle() async {
+    _user = const AppUser(
+      id: 'fake-g-001',
+      email: 'dali.google@gmail.com',
+      displayName: 'Dali (Google)',
+      emailVerified: true,
+    );
+    _emit();
+  }
+
+  @override
   Future<void> sendPasswordResetEmail(String email) async {
     if (!_registeredEmails.contains(email.trim().toLowerCase())) {
       throw const AuthFailure(

@@ -63,6 +63,11 @@ class AuthController extends _$AuthController {
     );
   }
 
+  Future<void> signInWithGoogle() async {
+    final repo = ref.read(authRepositoryProvider);
+    await repo.signInWithGoogle();
+  }
+
   Future<void> resetPassword(String email) async {
     final repo = ref.read(authRepositoryProvider);
     await repo.sendPasswordResetEmail(email);

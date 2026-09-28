@@ -77,6 +77,19 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
   });
 
+  testWidgets('google sign-in reaches the tab shell', (tester) async {
+    final repo = FakeAuthRepository();
+
+    await tester.pumpWidget(buildApp(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pumpAndSettle();
+
+    // Fake repository signs in a Google-style user → shell appears.
+    expect(find.text('Calisthenics'), findsOneWidget);
+  });
+
   testWidgets('signing out returns to the sign-in screen', (tester) async {
     final repo = FakeAuthRepository()
       ..seedAccount('dali@test.com', 'secret123');

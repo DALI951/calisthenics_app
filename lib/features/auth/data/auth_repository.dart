@@ -15,6 +15,10 @@ abstract interface class AuthRepository {
     required String password,
   });
 
+  /// Google Sign-In (must be enabled in the Firebase console). Throws
+  /// [AuthFailure] with code `sign-in-cancelled` when the user backs out.
+  Future<void> signInWithGoogle();
+
   Future<void> signUpWithEmailAndPassword({
     required String email,
     required String password,
@@ -60,6 +64,11 @@ class NoBackendAuthRepository implements AuthRepository {
     required String password,
     String? displayName,
   }) async {
+    throw _unavailable;
+  }
+
+  @override
+  Future<void> signInWithGoogle() async {
     throw _unavailable;
   }
 
