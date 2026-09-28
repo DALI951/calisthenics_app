@@ -49,6 +49,14 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Set up Firebase config (google-services.json from repo secret)
+        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          mkdir -p android/app
+          echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+
       - name: Build release APK
         run: flutter build apk --release --dart-define=APP_ENV=prod
 
