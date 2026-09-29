@@ -135,6 +135,11 @@ void main() {
     await tester.tap(find.widgetWithText(InkWell, 'Sign out'));
     await tester.pumpAndSettle();
 
+    // Signing out asks first — a stray tap must never log you out.
+    expect(find.text('Sign out?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign out'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Welcome back'), findsOneWidget);
   });
 

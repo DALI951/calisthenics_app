@@ -18,9 +18,12 @@ import '../../features/progress/presentation/history_detail_screen.dart';
 import '../../features/progress/presentation/history_screen.dart';
 import '../../features/achievements/presentation/achievements_screen.dart';
 import '../../features/progress/presentation/progress_screen.dart';
+import '../../features/progression/presentation/maxes_screen.dart';
 import '../../features/workout_session/presentation/rest_day_screen.dart';
 import '../../features/workout_session/presentation/workout_session_screen.dart';
 import '../../features/workout_session/presentation/workout_summary_screen.dart';
+import '../../features/workouts/presentation/day_editor_screen.dart';
+import '../../features/workouts/presentation/program_editor_screen.dart';
 import '../../features/workouts/presentation/workouts_screen.dart';
 import 'app_shell.dart';
 
@@ -220,6 +223,23 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profile/settings',
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/profile/maxes',
+        name: 'maxes',
+        builder: (context, state) => const MaxesScreen(),
+      ),
+      GoRoute(
+        path: '/app/workouts/edit',
+        name: 'programEditor',
+        builder: (context, state) => const ProgramEditorScreen(),
+      ),
+      GoRoute(
+        path: '/app/workouts/edit/day/:dayNumber',
+        name: 'dayEditor',
+        builder: (context, state) => DayEditorScreen(
+          dayNumber: int.tryParse(state.pathParameters['dayNumber'] ?? '') ?? 1,
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

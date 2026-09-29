@@ -9,6 +9,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../exercises/data/exercise_library.dart';
 import '../../workout_session/presentation/workout_session_controller.dart';
+import '../../workouts/data/active_program_controller.dart';
 import '../../workouts/data/program_registry.dart';
 import '../../workouts/domain/workout_program.dart';
 
@@ -24,13 +25,94 @@ class WorkoutsScreen extends ConsumerWidget {
       context.push('/app/workouts/session');
       return;
     }
-    ctrl.start(ProgramRegistry.beginner, day);
+    // Train the USER's program, not the built-in const — that is the whole
+    // point of an editable week.
+    ctrl.start(
+      ref.read(activeProgramControllerProvider).value ??
+          ProgramRegistry.beginner,
+      day,
+    );
     context.push('/app/workouts/session');
+  }
+
+  /// "What do you want to train today?" — every training day in the user's
+  /// program, not just the one the calendar says.
+  void _chooseDay(BuildContext context, WidgetRef ref) {
+    final program =
+        ref.read(activeProgramControllerProvider).value ??
+        ProgramRegistry.beginner;
+    final days =
+        program.days.where((d) => d.type == ProgramDayType.training).toList()
+          ..sort((a, b) => a.dayNumber.compareTo(b.dayNumber));
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.md),
+            Text('What do you want to train?', style: AppTypography.title),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Any day. Any order. The schedule is yours.',
+              style: AppTypography.caption.apply(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final day in days)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                leading: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.accentGlow,
+                  child: Text(
+                    '${day.dayNumber}',
+                    style: AppTypography.label.copyWith(
+                      color: AppColors.accentLight,
+                    ),
+                  ),
+                ),
+                title: Text(day.name, style: AppTypography.body),
+                subtitle: day.exercises.isEmpty
+                    ? null
+                    : Text(
+                        '${day.exercises.length} movements',
+                        style: AppTypography.caption,
+                      ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _startDay(context, ref, day);
+                },
+              ),
+            const SizedBox(height: AppSpacing.sm),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+              ),
+              leading: const Icon(Icons.tune, color: AppColors.textSecondary),
+              title: Text('Edit my week', style: AppTypography.body),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                context.push('/app/workouts/edit');
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final program = ProgramRegistry.beginner;
+    final program =
+        ref.watch(activeProgramControllerProvider).value ??
+        ProgramRegistry.beginner;
     final todaySlot = DateTime.now().weekday;
     final today = program.dayAt(todaySlot);
     final isRestDay = today.type == ProgramDayType.rest;
@@ -97,7 +179,29 @@ class WorkoutsScreen extends ConsumerWidget {
                         : 'Start today\'s workout',
                   ),
                 ),
+                // Never make the athlete wait for "their" day: any training
+                // day in their own program is one tap away, any day of the week.
+                if (activeSession == null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: () => _chooseDay(context, ref),
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Train something else'),
+                  ),
+                ],
               ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => context.push('/app/workouts/edit'),
+              icon: const Icon(Icons.tune, size: 16),
+              label: const Text('Edit my week'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                visualDensity: VisualDensity.compact,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
