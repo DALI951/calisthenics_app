@@ -47,29 +47,31 @@ class PrivacySettingsScreen extends ConsumerWidget {
 
           const _Section('Training visibility'),
           Card(
-            child: Column(
-              children: [
-                for (final v in TrainingVisibility.values)
-                  RadioListTile<TrainingVisibility>(
-                    value: v,
-                    groupValue: s.trainingVisibility,
-                    onChanged: (val) => val == null
-                        ? null
-                        : controller.save(s.copyWith(trainingVisibility: val)),
-                    title: Text(
-                      v == TrainingVisibility.friends ? 'Friends' : 'Nobody',
-                      style: AppTypography.body,
+            child: RadioGroup<TrainingVisibility>(
+              groupValue: s.trainingVisibility,
+              onChanged: (val) => val == null
+                  ? null
+                  : controller.save(s.copyWith(trainingVisibility: val)),
+              child: Column(
+                children: [
+                  for (final v in TrainingVisibility.values)
+                    RadioListTile<TrainingVisibility>(
+                      value: v,
+                      title: Text(
+                        v == TrainingVisibility.friends ? 'Friends' : 'Nobody',
+                        style: AppTypography.body,
+                      ),
+                      subtitle: Text(
+                        v == TrainingVisibility.friends
+                            ? 'Friends and challenge partners can see your '
+                                  'training activity.'
+                            : 'Your training stays on this phone. Challenges '
+                                  'still work, they just show no names.',
+                        style: AppTypography.caption,
+                      ),
                     ),
-                    subtitle: Text(
-                      v == TrainingVisibility.friends
-                          ? 'Friends and challenge partners can see your '
-                                'training activity.'
-                          : 'Your training stays on this phone. Challenges '
-                                'still work, they just show no names.',
-                      style: AppTypography.caption,
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -108,31 +110,31 @@ class PrivacySettingsScreen extends ConsumerWidget {
 
           const _Section('Challenge invitations'),
           Card(
-            child: Column(
-              children: [
-                for (final v in ChallengeInviteSource.values)
-                  RadioListTile<ChallengeInviteSource>(
-                    value: v,
-                    groupValue: s.challengeInvitesFrom,
-                    onChanged: (val) => val == null
-                        ? null
-                        : controller.save(
-                            s.copyWith(challengeInvitesFrom: val),
-                          ),
-                    title: Text(
-                      v == ChallengeInviteSource.friendsOnly
-                          ? 'Friends only'
-                          : 'Nobody',
-                      style: AppTypography.body,
+            child: RadioGroup<ChallengeInviteSource>(
+              groupValue: s.challengeInvitesFrom,
+              onChanged: (val) => val == null
+                  ? null
+                  : controller.save(s.copyWith(challengeInvitesFrom: val)),
+              child: Column(
+                children: [
+                  for (final v in ChallengeInviteSource.values)
+                    RadioListTile<ChallengeInviteSource>(
+                      value: v,
+                      title: Text(
+                        v == ChallengeInviteSource.friendsOnly
+                            ? 'Friends only'
+                            : 'Nobody',
+                        style: AppTypography.body,
+                      ),
+                      subtitle: Text(
+                        v == ChallengeInviteSource.friendsOnly
+                            ? 'Only people you already added may invite you.'
+                            : 'Nobody can invite you to a challenge.',
+                        style: AppTypography.caption,
+                      ),
                     ),
-                    subtitle: Text(
-                      v == ChallengeInviteSource.friendsOnly
-                          ? 'Only people you already added may invite you.'
-                          : 'Nobody can invite you to a challenge.',
-                      style: AppTypography.caption,
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),

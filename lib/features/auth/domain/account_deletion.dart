@@ -73,20 +73,26 @@ class AccountDeletionReport {
 /// account is still deleted so the person is not left in a half state they
 /// cannot escape.
 class AccountDeletionService {
+  // Named parameters cannot be private in Dart, so the injected steps are
+  // public fields rather than `this.clearLocal` initializing formals.
   AccountDeletionService({
-    Future<int> Function()? clearLocal,
-    Future<int> Function()? deleteFirestore,
-    Future<int> Function()? deleteRealtime,
-    Future<void> Function()? deleteAuthAccount,
-  }) : _clearLocal = clearLocal,
-       _deleteFirestore = deleteFirestore,
-       _deleteRealtime = deleteRealtime,
-       _deleteAuthAccount = deleteAuthAccount;
+    this.clearLocal,
+    this.deleteFirestore,
+    this.deleteRealtime,
+    this.deleteAuthAccount,
+  });
 
-  final Future<int> Function()? _clearLocal;
-  final Future<int> Function()? _deleteFirestore;
-  final Future<int> Function()? _deleteRealtime;
-  final Future<void> Function()? _deleteAuthAccount;
+  /// Wipes every local key this app owns.
+  final Future<int> Function()? clearLocal;
+
+  /// Removes the caller's own Firestore documents.
+  final Future<int> Function()? deleteFirestore;
+
+  /// Removes presence + live-session nodes.
+  final Future<int> Function()? deleteRealtime;
+
+  /// Deletes the auth account itself.
+  final Future<void> Function()? deleteAuthAccount;
 
   Future<AccountDeletionReport> run() async {
     var remote = 0;
@@ -96,31 +102,35 @@ class AccountDeletionService {
     final failures = <String>[];
     final server = <String>[];
 
-    if (_clearLocal != null) {
+    // Public final fields are not null-promoted, so take locals first.
+    final clear = clearLocal;
+    if (clear != null) {
       try {
-        localKeys = await _clearLocal();
+        localKeys = await clear();
         localCleared = true;
-      } catch (e) {
+      } catch (_) {
         failures.add('local settings');
       }
     } else {
       failures.add('local settings');
     }
 
-    if (_deleteFirestore != null) {
+    final firestore = deleteFirestore;
+    if (firestore != null) {
       try {
-        remote += await _deleteFirestore();
-      } catch (e) {
+        remote += await firestore();
+      } catch (_) {
         failures.add('your synced profile and history');
       }
     } else {
       failures.add('your synced profile and history');
     }
 
-    if (_deleteRealtime != null) {
+    final realtime = deleteRealtime;
+    if (realtime != null) {
       try {
-        remote += await _deleteRealtime();
-      } catch (e) {
+        remote += await realtime();
+      } catch (_) {
         failures.add('live presence');
       }
     }
@@ -131,11 +141,12 @@ class AccountDeletionService {
     server.add('achievements you earned (server-issued records)');
     server.add('your edge of friendships (your friend keeps theirs)');
 
-    if (_deleteAuthAccount != null) {
+    final auth = deleteAuthAccount;
+    if (auth != null) {
       try {
-        await _deleteAuthAccount();
+        await auth();
         accountDeleted = true;
-      } catch (e) {
+      } catch (_) {
         failures.add('your sign-in');
       }
     } else {
