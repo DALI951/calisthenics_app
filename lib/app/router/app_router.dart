@@ -16,6 +16,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/progress/presentation/history_detail_screen.dart';
 import '../../features/progress/presentation/history_screen.dart';
+import '../../features/achievements/presentation/achievements_screen.dart';
 import '../../features/progress/presentation/progress_screen.dart';
 import '../../features/workout_session/presentation/rest_day_screen.dart';
 import '../../features/workout_session/presentation/workout_session_screen.dart';
@@ -175,6 +176,11 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => HistoryDetailScreen(
                       sessionId: state.pathParameters['sessionId']!,
                     ),
+                  ),
+                  GoRoute(
+                    path: 'achievements',
+                    name: 'achievements',
+                    builder: (context, state) => const AchievementsScreen(),
                   ),
                 ],
               ),

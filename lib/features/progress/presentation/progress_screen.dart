@@ -52,7 +52,16 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final selectedId = exercise?.exerciseId;
 
     return Scaffold(
-      appBar: ShellAppBar(title: 'Progress'),
+      appBar: ShellAppBar(
+        title: 'Progress',
+        actions: [
+          IconButton(
+            tooltip: 'Achievements',
+            onPressed: () => context.push('/app/progress/achievements'),
+            icon: const Icon(Icons.emoji_events_outlined),
+          ),
+        ],
+      ),
       body: history.isEmpty
           ? const AppEmptyState(
               title: 'No progress data yet',
