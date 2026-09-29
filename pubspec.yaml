@@ -1,7 +1,7 @@
 name: calisthenics_app
 description: "Calisthenics — a premium beginner-friendly calisthenics training app for two friends who train together, compete through healthy challenges, and improve over time."
 publish_to: 'none'
-version: 0.1.13+1
+version: 0.1.14+1
 
 environment:
   sdk: ^3.13.4
@@ -23,10 +23,14 @@ dependencies:
   freezed_annotation: ^3.1.0
   go_router: ^18.0.1
   google_sign_in: ^7.2.0
+  http: 1.2.2
   intl: ^0.20.3
   json_annotation: ^4.12.0
+  package_info_plus: 8.1.0
+  path_provider: 2.1.5
   riverpod_annotation: ^4.0.7
   shared_preferences: ^2.5.5
+  url_launcher: 6.3.1
   uuid: ^4.6.0
 
 dev_dependencies:

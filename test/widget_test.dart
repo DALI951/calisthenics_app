@@ -128,6 +128,10 @@ void main() {
       100,
       scrollable: profileScrollable,
     );
+    // scrollUntilVisible stops at "partly visible", which still leaves the
+    // tap outside the test viewport — bring it fully on screen.
+    await tester.ensureVisible(find.text('Sign out'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(InkWell, 'Sign out'));
     await tester.pumpAndSettle();
 

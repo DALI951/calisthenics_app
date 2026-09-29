@@ -14,6 +14,7 @@ import '../../workout_session/data/workout_history_repository.dart';
 import '../../workout_session/domain/personal_records.dart';
 import '../../workout_session/presentation/workout_session_controller.dart';
 import '../../../core/widgets/sync_status_chip.dart';
+import '../../../core/widgets/update_banner.dart';
 import '../../workouts/data/program_registry.dart';
 import '../../workouts/domain/workout_program.dart';
 
@@ -66,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           const Align(alignment: Alignment.centerLeft, child: SyncStatusChip()),
-          const SizedBox(height: AppSpacing.sm),
+          const UpdateBanner(),
           Text(
             '${_greeting()}, ${user?.displayLabel ?? 'athlete'}',
             style: AppTypography.headline,

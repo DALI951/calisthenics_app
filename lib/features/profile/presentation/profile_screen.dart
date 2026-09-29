@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/update/update_providers.dart';
 import '../../auth/data/account_deletion_providers.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../notifications/presentation/notification_settings_screen.dart';
@@ -118,6 +119,9 @@ class ProfileScreen extends ConsumerWidget {
             title: 'Appearance',
             subtitle: 'Theme mode',
             onTap: () => context.push('/profile/settings'),
+          ),
+          _UpdateSettingsTile(
+            onCheck: () => ref.read(updateControllerProvider.notifier).check(),
           ),
           _SettingsTile(
             icon: Icons.privacy_tip_outlined,
@@ -236,6 +240,37 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xxl),
         ],
       ),
+    );
+  }
+}
+
+/// Version + a manual update check. Quiet: it only speaks when you tap it, or
+/// when there is genuinely a newer build.
+class _UpdateSettingsTile extends ConsumerWidget {
+  const _UpdateSettingsTile({required this.onCheck});
+  final VoidCallback onCheck;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(updateControllerProvider);
+    final (icon, subtitle) = switch (state) {
+      UpdateChecking() => (Icons.sync, 'Checking for updates…'),
+      UpdateDone(hasUpdate: true) => (Icons.system_update, 'Update available'),
+      UpdateDone(failed: true) => (Icons.cloud_off, 'Update check failed'),
+      UpdateDone() => (Icons.verified, 'You are on the latest release'),
+      UpdateDownloading() => (Icons.downloading, 'Downloading update…'),
+      UpdateReadyToInstall() => (
+        Icons.install_mobile,
+        'Update ready to install',
+      ),
+      UpdateFailed() => (Icons.error_outline, 'Update failed'),
+      UpdateIdle() => (Icons.system_update_alt, 'Check for updates'),
+    };
+    return _SettingsTile(
+      icon: icon,
+      title: 'App updates',
+      subtitle: subtitle,
+      onTap: state is UpdateChecking ? null : onCheck,
     );
   }
 }

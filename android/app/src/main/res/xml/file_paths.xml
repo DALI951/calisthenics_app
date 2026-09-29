@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- The updater downloads the release APK here before handing it to the
+         system installer. Only the cache dir is exposed, never storage. -->
+    <cache-path name="updates" path="." />
+</paths>
