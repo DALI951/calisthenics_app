@@ -10,6 +10,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../presence/data/presence_providers.dart';
 import '../../presence/domain/training_presence.dart';
+import '../../train_together/presentation/train_together_screen.dart';
 import '../data/friends_providers.dart';
 import '../domain/friend_models.dart';
 import 'add_friend_sheet.dart';
@@ -103,9 +104,31 @@ class FriendsScreen extends ConsumerWidget {
                                         .onSurfaceVariant,
                                   ),
                                 ),
-                                trailing: _MenuButton(
-                                  onRemove: () =>
-                                      confirmRemoveFriend(context, ref, f),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Train together',
+                                      onPressed: () =>
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) =>
+                                                  TrainTogetherScreen(
+                                                    partnerUid: f.uid,
+                                                    partnerHandle: f.handle,
+                                                  ),
+                                            ),
+                                          ),
+                                      icon: const Icon(
+                                        Icons.groups_2_outlined,
+                                        color: AppColors.accentLight,
+                                      ),
+                                    ),
+                                    _MenuButton(
+                                      onRemove: () =>
+                                          confirmRemoveFriend(context, ref, f),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],
