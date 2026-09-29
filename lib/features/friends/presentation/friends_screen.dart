@@ -8,6 +8,8 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../auth/data/auth_providers.dart';
+import '../../presence/data/presence_providers.dart';
+import '../../presence/domain/training_presence.dart';
 import '../data/friends_providers.dart';
 import '../domain/friend_models.dart';
 import 'add_friend_sheet.dart';
@@ -25,6 +27,8 @@ class FriendsScreen extends ConsumerWidget {
         ref.watch(incomingFriendRequestsProvider).value ?? const [];
     final outgoing =
         ref.watch(outgoingFriendRequestsProvider).value ?? const [];
+    final trainingNow =
+        ref.watch(friendsPresenceProvider).value ?? const <TrainingPresence>[];
 
     return DefaultTabController(
       length: 2,
@@ -71,38 +75,40 @@ class FriendsScreen extends ConsumerWidget {
                                     'to be accepted.',
                           icon: Icons.people_outline,
                         )
-                      : ListView.separated(
+                      : ListView(
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.lg,
                           ),
-                          itemCount: friends.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: AppSpacing.xs),
-                          itemBuilder: (context, i) {
-                            final f = friends[i];
-                            return ListTile(
-                              leading: _Avatar(
-                                handle: f.handle,
-                                photoUrl: f.photoUrl,
-                              ),
-                              title: Text(
-                                f.displayLabel,
-                                style: AppTypography.body,
-                              ),
-                              subtitle: Text(
-                                '@${f.handle}',
-                                style: AppTypography.caption.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                          children: [
+                            // Live presence strip (spec §22).
+                            if (trainingNow.isNotEmpty) ...[
+                              _TrainingNowStrip(trainingNow: trainingNow),
+                              const SizedBox(height: AppSpacing.sm),
+                            ],
+                            for (final f in friends)
+                              ListTile(
+                                leading: _Avatar(
+                                  handle: f.handle,
+                                  photoUrl: f.photoUrl,
+                                ),
+                                title: Text(
+                                  f.displayLabel,
+                                  style: AppTypography.body,
+                                ),
+                                subtitle: Text(
+                                  '@${f.handle}',
+                                  style: AppTypography.caption.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                                trailing: _MenuButton(
+                                  onRemove: () =>
+                                      confirmRemoveFriend(context, ref, f),
                                 ),
                               ),
-                              trailing: _MenuButton(
-                                onRemove: () =>
-                                    confirmRemoveFriend(context, ref, f),
-                              ),
-                            );
-                          },
+                          ],
                         ),
 
                   // ---- Requests tab ----------------------------------------
@@ -179,6 +185,108 @@ class FriendsScreen extends ConsumerWidget {
                         ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _TrainingNowStrip extends StatelessWidget {
+  const _TrainingNowStrip({required this.trainingNow});
+
+  final List<TrainingPresence> trainingNow;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
+    return AppCard(
+      highlight: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _PulsingDot(),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Training now (${trainingNow.length})',
+                style: AppTypography.title,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final p in trainingNow)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Row(
+                children: [
+                  _Avatar(handle: p.handle),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('@${p.handle}', style: AppTypography.bodySmall),
+                        Text(
+                          p.exerciseName.isEmpty
+                              ? p.dayName
+                              : '${p.exerciseName} — ${p.dayName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption.copyWith(
+                            color: secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    _elapsedLabel(p.elapsed),
+                    style: AppTypography.caption.copyWith(color: secondary),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _elapsedLabel(Duration d) {
+    if (d.inHours >= 1) return '${d.inHours}h';
+    return '${d.inMinutes.clamp(1, 59)}m';
+  }
+}
+
+/// Soft pulsing red dot (reassuring, not alarming — no shame, spec §27).
+class _PulsingDot extends StatefulWidget {
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.accentLight.withValues(alpha: 0.4 + _c.value * 0.6),
+        ),
       ),
     );
   }

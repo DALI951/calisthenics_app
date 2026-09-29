@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -5,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_ids.dart';
 import '../../exercises/data/exercise_library.dart';
+import '../../presence/data/presence_providers.dart';
 import '../../workouts/domain/workout_program.dart';
 import '../domain/set_entry.dart';
 import '../domain/workout_session.dart';
@@ -46,8 +48,38 @@ class WorkoutSessionController extends _$WorkoutSessionController {
     );
     state = session;
     _save(session);
+    // Live presence for friends (spec §22) — best-effort, never blocks.
+    unawaited(
+      ref
+          .read(presenceRepositoryProvider)
+          .goOnlineForTraining(
+            dayName: day.name,
+            exerciseName: session.exercises.isEmpty
+                ? ''
+                : session.exercises.first.name,
+          ),
+    );
     return session;
   }
+
+  /// Pushes the current exercise to friends when it changes (throttled —
+  /// only on exercise switch, not on every set).
+  void _touchPresence() {
+    final s = state;
+    if (s == null || s.phase == WorkoutPhase.finished) return;
+    final idx = s.currentExerciseIndex(s.sets);
+    if (idx < 0 || idx >= s.exercises.length) return;
+    final name = s.exercises[idx].name;
+    if (name == _lastPresenceExercise) return;
+    _lastPresenceExercise = name;
+    unawaited(
+      ref
+          .read(presenceRepositoryProvider)
+          .goOnlineForTraining(dayName: s.dayName, exerciseName: name),
+    );
+  }
+
+  String? _lastPresenceExercise;
 
   /// Restores a killed-session draft if one exists (called on app start).
   Future<WorkoutSession?> restoreDraft() async {
@@ -125,6 +157,7 @@ class WorkoutSessionController extends _$WorkoutSessionController {
 
     state = s.copyWith(sets: sets, phase: phase);
     _save(state!);
+    _touchPresence();
   }
 
   void skipSet() {
@@ -146,6 +179,7 @@ class WorkoutSessionController extends _$WorkoutSessionController {
         : WorkoutPhase.working;
     state = s.copyWith(sets: sets, phase: phase);
     _save(state!);
+    _touchPresence();
   }
 
   /// Undo the last recorded set (spec §14).
@@ -155,6 +189,7 @@ class WorkoutSessionController extends _$WorkoutSessionController {
     final sets = [...s.sets]..removeLast();
     state = s.copyWith(sets: sets, phase: WorkoutPhase.working);
     _save(state!);
+    _touchPresence();
   }
 
   /// Swap the CURRENT exercise for a different library movement (spec §14).
@@ -184,6 +219,8 @@ class WorkoutSessionController extends _$WorkoutSessionController {
     }).toList();
     state = s.copyWith(exercises: exercises);
     _save(state!);
+    _lastPresenceExercise = null; // force refresh with the new name
+    _touchPresence();
   }
 
   /// Start the rest timer for the CURRENT exercise/set.
@@ -237,7 +274,9 @@ class WorkoutSessionController extends _$WorkoutSessionController {
       endedAt: di.toUtc(),
     );
     state = null;
+    _lastPresenceExercise = null;
     await _clearDraft();
+    unawaited(ref.read(presenceRepositoryProvider).stopTraining());
     await ref.read(workoutHistoryRepositoryProvider.notifier).add(completed);
     ref.read(lastCompletedSessionProvider.notifier).state = completed;
     return completed;
@@ -246,7 +285,9 @@ class WorkoutSessionController extends _$WorkoutSessionController {
   /// Abandon entirely (confirmed by UI) — no record created.
   Future<void> discard() async {
     state = null;
+    _lastPresenceExercise = null;
     await _clearDraft();
+    unawaited(ref.read(presenceRepositoryProvider).stopTraining());
   }
 
   bool _allExercisesDone(List<SetEntry> sets) => state!.exercises.every(
