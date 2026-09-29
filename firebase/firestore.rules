@@ -1,0 +1,158 @@
+rules_version = '2';
+
+// Calisthenics — Firestore security rules (spec §33/§34).
+//
+// Trust model:
+//  * A user owns their own profile, settings and private data.
+//  * A user may write ONLY their own subtree under friends/presence/etc.
+//  * A user may NEVER declare a challenge winner or an achievement as
+//    "verified" — only a trusted server (Cloud Function / Admin SDK) may set
+//    those fields, because the client is not trusted for competitive truth.
+//  * Exercise/program content is read-only to clients.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers -------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function onlyFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    function isString(v) { return v is string; }
+    function isInt(v) { return v is int; }
+    function isNumber(v) { return v is int || v is float; }
+    function isBool(v) { return v is bool; }
+
+    // The two competitive fields no client may ever write.
+    function writesNoCompetitiveTruth() {
+      return !('result' in request.resource.data) &&
+             !('decidedBy' in request.resource.data) &&
+             !('verified' in request.resource.data);
+    }
+
+    // ---- users / profiles (own data only) ------------------------------
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys()
+             .hasOnly(['uid','handle','displayLabel','photoUrl','createdAt',
+                       'settings','stats']);
+      allow delete: if false;
+
+      // Friend links are symmetric and owned by neither side alone: each side
+      // may add/remove only its own edge, the other side is managed by them.
+      match /friends/{friendId} {
+        allow read: if isSelf(uid) || isSelf(friendId);
+        allow create, delete: if isSelf(uid) && isSignedIn() && friendId != uid;
+        // A friendship edge carries no competitive data.
+        allow update: if false;
+      }
+    }
+
+    // ---- friend requests ------------------------------------------------
+    match /friendRequests/{pairId} {
+      // Either participant may read the request.
+      allow read: if isSignedIn()
+        && (resource.data.fromUid == request.auth.uid ||
+            resource.data.toUid == request.auth.uid);
+      // The sender creates it, addressed to a real user, with typed fields.
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.keys()
+             .hasOnly(['fromUid','toUid','status','createdAt','handledAt']);
+      // Only the RECIPIENT may accept/decline; only the SENDER may withdraw.
+      allow update: if isSignedIn()
+        && (resource.data.toUid == request.auth.uid ||
+            (resource.data.fromUid == request.auth.uid &&
+             resource.data.status == 'pending'));
+      allow delete: if isSignedIn()
+        && resource.data.fromUid == request.auth.uid
+        && resource.data.status == 'pending';
+    }
+
+    // ---- challenges -----------------------------------------------------
+    match /challenges/{challengeId} {
+      // Participants (and the invited, not-yet-accepted opponent) may read.
+      allow read: if isSignedIn()
+        && (resource.data.ownerUid == request.auth.uid ||
+            resource.data.participantUids is list &&
+            request.auth.uid in resource.data.participantUids ||
+            resource.data.invitedUid == request.auth.uid);
+
+      // A creator cannot fake a target beyond safe limits, and cannot ship a
+      // pre-decided result.
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && !('result' in request.resource.data)
+        && request.resource.data.target is number
+        && request.resource.data.target >= 0
+        && request.resource.data.target <= 100000;
+
+      // Updating is allowed ONLY for non-competitive fields (accept/decline/
+      // status), and NEVER while a server-decided result exists.
+      allow update: if isSignedIn()
+        && (resource.data.ownerUid == request.auth.uid ||
+            resource.data.participantUids is list &&
+            request.auth.uid in resource.data.participantUids ||
+            resource.data.invitedUid == request.auth.uid)
+        && writesNoCompetitiveTruth()
+        && !('result' in resource.data);
+      allow delete: if false;
+
+      // Per-user progress: each participant writes ONLY their own doc, and
+      // never a verdict.
+      match /progress/{uid} {
+        allow read: if isSignedIn();
+        allow write: if isSelf(uid) && writesNoCompetitiveTruth();
+        allow delete: if isSelf(uid);
+      }
+    }
+
+    // ---- achievements (server-trusted) ----------------------------------
+    // Clients canNOT award themselves. Only a trusted backend (Admin SDK,
+    // which bypasses rules) writes these. Clients may read their own.
+    match /userAchievements/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false; // server-only
+      match /achievements/{achievementId} {
+        allow read: if isSelf(uid);
+        allow write: if false; // server-only
+      }
+    }
+
+    // ---- presence / live workout (RTDB, mirrored read model) -----------
+    match /presence/{uid} {
+      allow read, write: if isSelf(uid);
+    }
+
+    // ---- exercise + program content: read-only to clients --------------
+    match /exercises/{exerciseId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /programs/{programId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ---- workout history mirror (outbox sync) --------------------------
+    match /workoutHistory/{uid} {
+      allow read: if isSelf(uid);
+      // Idempotent mirror write of the caller's own sessions only.
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasAll(['id','sets']);
+      allow delete: if false;
+    }
+
+    // Default: deny anything not explicitly matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

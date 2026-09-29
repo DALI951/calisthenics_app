@@ -73,11 +73,21 @@ void main() {
       expect(t, isNotNull);
       expect(t!.totalSeconds, 60);
 
+      // Compare against the state's own anchor, never the wall clock — a
+      // starved CI box must not decide whether this passes.
+      final anchoredAt = t.restUntil;
       ctrl.addSeconds(15);
       t = container.read(restTimerControllerProvider.notifier).state;
       expect(
-        t!.restUntil.difference(DateTime.now()).inSeconds,
-        greaterThan(70),
+        t!.restUntil.difference(anchoredAt).inSeconds,
+        inInclusiveRange(14, 16),
+        reason: 'adding 15s extends the anchor by 15s',
+      );
+      expect(
+        t.totalSeconds,
+        60,
+        reason:
+            'the configured rest length is unchanged; only the anchor moves',
       );
 
       ctrl.pause();
