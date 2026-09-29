@@ -24,8 +24,10 @@ void main() {
         ),
       ];
 
-      final records =
-          RecordsEngine.build(history, now: DateTime.utc(2026, 9, 30));
+      final records = RecordsEngine.build(
+        history,
+        now: DateTime.utc(2026, 9, 30),
+      );
       final r = records['pushup-standard']!;
       expect(r.bestSingle, 14);
       expect(r.bestDayTotal, 25); // 14 + 11 in the best session
@@ -43,8 +45,10 @@ void main() {
           seconds: const [40, 55],
         ),
       ];
-      final records =
-          RecordsEngine.build(history, now: DateTime.utc(2026, 9, 30));
+      final records = RecordsEngine.build(
+        history,
+        now: DateTime.utc(2026, 9, 30),
+      );
       final r = records['plank']!;
       expect(r.isTimed, isTrue);
       expect(r.bestHoldSeconds, 55);
@@ -96,8 +100,10 @@ void main() {
           values: const [13],
         ),
       ];
-      final r = RecordsEngine.build(history, now: DateTime.utc(2026, 9, 30))[
-          'pushup-standard']!;
+      final r = RecordsEngine.build(
+        history,
+        now: DateTime.utc(2026, 9, 30),
+      )['pushup-standard']!;
       expect(r.thisProgramBestSingle, 13); // v1's 19 does not leak in
     });
 
@@ -143,8 +149,10 @@ void main() {
           ],
         ),
       ];
-      final records =
-          RecordsEngine.build(history, now: DateTime.utc(2026, 9, 30));
+      final records = RecordsEngine.build(
+        history,
+        now: DateTime.utc(2026, 9, 30),
+      );
       expect(records.containsKey('pushup-standard'), isFalse);
     });
 
@@ -167,8 +175,9 @@ void main() {
       ];
       final prs = recordsForSession(history, history[1]);
       expect(prs.where((p) => p.exerciseId == 'pushup-standard'), isNotEmpty);
-      final maxSingle =
-          prs.where((p) => p.kind == RecordKind.maxSingle).toList();
+      final maxSingle = prs
+          .where((p) => p.kind == RecordKind.maxSingle)
+          .toList();
       expect(maxSingle, hasLength(1));
       expect(maxSingle.first.value, 14);
     });
