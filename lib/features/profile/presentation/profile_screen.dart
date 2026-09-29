@@ -6,8 +6,10 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../auth/data/account_deletion_providers.dart';
 import '../../auth/data/auth_providers.dart';
 import '../../notifications/presentation/notification_settings_screen.dart';
+import '../../privacy/presentation/privacy_settings_screen.dart';
 import '../presentation/profile_providers.dart';
 
 /// Profile: identity, level/XP, stats, settings entry (spec §44).
@@ -120,8 +122,12 @@ class ProfileScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy',
-            subtitle: 'Training visibility, online status (Phase 6)',
-            onTap: null,
+            subtitle: 'Who can see your training',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PrivacySettingsScreen(),
+              ),
+            ),
           ),
           _SettingsTile(
             icon: Icons.notifications_outlined,
@@ -206,14 +212,24 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppSectionTitle('Coming in later phases'),
+          AppSectionTitle('Account deletion'),
           AppCard(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ComingRow('Privacy controls', 'Training + online visibility'),
-                _ComingRow('Notifications', 'Granular friend/challenge alerts'),
-                _ComingRow('Units', 'kg/lb, km/mi'),
-                _ComingRow('Account deletion', 'Erase all synced data'),
+                Text(
+                  'Deletes your training history, your synced profile and your '
+                  'sign-in. Challenges you and your partner share stay visible '
+                  'to them until the server purge runs — we never quietly '
+                  'delete something out from under a challenge.',
+                  style: AppTypography.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmDeleteAccount(context, ref),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete my account'),
+                ),
               ],
             ),
           ),
@@ -222,6 +238,49 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Two deliberate confirmations for an irreversible action, then an honest
+/// report of what was actually removed.
+Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Delete your account?'),
+      content: const Text(
+        'This permanently removes your history, achievements and profile. '
+        'There is no undo and no backup.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Keep my account'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Delete everything'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  final report = await ref.read(accountDeletionServiceProvider).run();
+  ref.read(authControllerProvider.notifier).signOut();
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Account deleted'),
+      content: Text(report.describe()),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ThemeOption extends StatelessWidget {
@@ -245,38 +304,6 @@ class _ThemeOption extends StatelessWidget {
       subtitle: Text(description, style: AppTypography.bodySmall),
       trailing: Radio<ThemeMode>(value: value),
       onTap: onTap,
-    );
-  }
-}
-
-class _ComingRow extends StatelessWidget {
-  const _ComingRow(this.title, this.subtitle);
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.body),
-                Text(
-                  subtitle,
-                  style: AppTypography.bodySmall.apply(color: secondary),
-                ),
-              ],
-            ),
-          ),
-          AppChip(label: 'Soon'),
-        ],
-      ),
     );
   }
 }
