@@ -98,10 +98,15 @@ jobs:
             --latest \
             --generate-notes
 
-          # Public manifest for the in-app updater. The repo is PRIVATE, so the
-          # app cannot read /releases/latest from GitHub's API without a token —
-          # it reads this file instead. Same content, no auth required.
+          # Public manifest for the in-app updater. The app reads this first, so
+          # the check works without a GitHub token. Updating an existing file
+          # through the contents API requires its current sha, else HTTP 422.
           RUN_ID="${{ github.run_id }}"
+          MANIFEST_PATH="repos/${{ github.repository }}/contents/latest.json"
+          MANIFEST_SHA=""
+          if EXISTING_SHA=$(gh api "$MANIFEST_PATH" --jq .sha 2>/dev/null); then
+            MANIFEST_SHA="$EXISTING_SHA"
+          fi
           {
             echo '{'
             echo "  \"version\": \"$VER\","
@@ -110,8 +115,9 @@ jobs:
             echo "  \"notes\": \"https://github.com/${{ github.repository }}/releases/tag/$VER\""
             echo '}'
           } > latest.json
-          gh api "repos/${{ github.repository }}/contents/latest.json" \
+          gh api "$MANIFEST_PATH" \
             --method PUT \
             --field message="chore: update manifest to $VER (run $RUN_ID)" \
             --field content="$(base64 -w0 latest.json)" \
+            ${MANIFEST_SHA:+--field sha="$MANIFEST_SHA"} \
             --silent && echo "latest.json published for $VER"
