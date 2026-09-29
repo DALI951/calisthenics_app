@@ -7,6 +7,7 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../auth/data/auth_providers.dart';
+import '../../notifications/presentation/notification_settings_screen.dart';
 import '../presentation/profile_providers.dart';
 
 /// Profile: identity, level/XP, stats, settings entry (spec §44).
@@ -125,8 +126,12 @@ class ProfileScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.notifications_outlined,
             title: 'Notifications',
-            subtitle: 'Friend + challenge alerts (Phase 11)',
-            onTap: null,
+            subtitle: 'Choose exactly what may ping you',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const NotificationSettingsScreen(),
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
 
