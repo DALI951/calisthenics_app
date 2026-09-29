@@ -60,19 +60,29 @@ class AppShell extends StatelessWidget {
 
 /// Standard app bar for tab screens: clean title + avatar → profile.
 class ShellAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const ShellAppBar({super.key, required this.title, this.actions});
+  const ShellAppBar({
+    super.key,
+    required this.title,
+    this.actions,
+    this.bottom,
+  });
 
   final String title;
   final List<Widget>? actions;
 
+  /// Optional bottom slot (e.g. a TabBar). Raises the preferred height.
+  final PreferredSizeWidget? bottom;
+
   @override
-  Size get preferredSize => const Size.fromHeight(56);
+  Size get preferredSize =>
+      Size.fromHeight(56 + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       title: Text(title, style: AppTypography.title),
       actions: [...?actions, _AvatarButton()],
+      bottom: bottom,
     );
   }
 }
