@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_ids.dart';
 import '../../exercises/data/exercise_library.dart';
 import '../../presence/data/presence_providers.dart';
+import '../../progression/domain/journey_providers.dart';
+import '../../progression/domain/personal_maxes.dart';
+import '../../progression/domain/progression_engine.dart';
 import '../../workouts/domain/workout_program.dart';
 import '../domain/set_entry.dart';
 import '../domain/workout_session.dart';
@@ -28,7 +31,25 @@ class WorkoutSessionController extends _$WorkoutSessionController {
   WorkoutSession? build() => null;
 
   /// Starts a program day. Warm-up phase first (spec §29).
+  ///
+  /// The day's exercises are run through the progression engine first, so what
+  /// you actually train is scaled to YOUR maxes and to where you are in the
+  /// long-term journey — not a fixed list that repeats forever.
   WorkoutSession start(WorkoutProgram program, ProgramDay day) {
+    final engine = const ProgressionEngine();
+    final progress = ref.read(journeyProgressControllerProvider).value;
+    final week = progress?.week ?? 1;
+    final block = ProgramJourney.blockForWeek(week);
+    final maxes = ref.read(personalMaxesControllerProvider).value ??
+        PersonalMaxes.empty;
+
+    final scaled = engine.scaleDay(
+      day: day,
+      week: week,
+      emphasis: block.emphasis,
+      maxes: maxes,
+    );
+
     final session = WorkoutSession(
       id: 'ws_${DateTime.now().microsecondsSinceEpoch}_${DateTime.now().millisecond}',
       programId: program.id,
@@ -37,7 +58,7 @@ class WorkoutSessionController extends _$WorkoutSessionController {
       dayNumber: day.dayNumber,
       startedAt: DateTime.now().toUtc(),
       phase: WorkoutPhase.warmup,
-      exercises: day.exercises
+      exercises: scaled
           .map(
             (p) => SessionExercise.fromPlanned(
               p,

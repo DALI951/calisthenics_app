@@ -11,6 +11,7 @@ import '../data/exercise_favorites.dart';
 import '../data/exercise_library.dart';
 import '../domain/exercise.dart';
 import '../domain/exercise_enums.dart';
+import 'quick_log_card.dart';
 
 /// Polished exercise detail page (spec §13): everything about a movement,
 /// plus a "Practice" mode that records nothing.
@@ -65,6 +66,9 @@ class ExerciseDetailScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
+          // He asked for this: do the movement and have it counted, without
+          // having to squeeze it into a program day first.
+          QuickLogCard(exercise: exercise),
           // Header row: category, difficulty, metric.
           Wrap(
             spacing: AppSpacing.xs,
