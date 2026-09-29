@@ -7,6 +7,8 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../exercises/data/exercise_library.dart';
+import '../../progress/domain/progression_engine.dart';
 import '../data/workout_history_repository.dart';
 import '../domain/personal_records.dart';
 import '../domain/workout_session.dart';
@@ -177,6 +179,10 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                   ),
                 ],
 
+                // "Ready to progress?" (spec §11) — deterministic engine,
+                // only suggests when the session is complete and pain-free.
+                ..._progressionAdvices(session, history),
+
                 // Encouraging comparison (spec §16, never shaming §27).
                 if (prior.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -214,6 +220,74 @@ class WorkoutSummaryScreen extends ConsumerWidget {
               ],
             ),
     );
+  }
+
+  /// Deterministic progression advice for each complete, pain-free exercise
+  /// in this session (spec §10/§11). Returns widget fragments.
+  List<Widget> _progressionAdvices(
+    WorkoutSession session,
+    List<WorkoutSession> history,
+  ) {
+    if (!session.isComplete) return const [];
+    const engine = ProgressionEngine();
+    final widgets = <Widget>[];
+
+    final recent =
+        history
+            .where(
+              (s) =>
+                  s.id != session.id && !s.startedAt.isAfter(session.startedAt),
+            )
+            .toList()
+          ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    final recentWindow = recent.take(4).toList();
+
+    for (final ex in session.exercises) {
+      if (ex.isTimed) continue; // holds get PR tracking instead (Phase 10)
+      final planned = ExerciseLibrary.byId(ex.exerciseId);
+      final hardIds = planned?.harderVariations ?? const [];
+      final hard = hardIds.isEmpty ? null : ExerciseLibrary.byId(hardIds.first);
+      final sets = validSetsByExercise([
+        session,
+        ...recentWindow,
+      ], ex.exerciseId);
+      if (sets.isEmpty) continue;
+      final advice = engine.evaluate(
+        recentSetsPerSession: sets,
+        sets: ex.sets,
+        targetMin: ex.targetMin ?? 0,
+        targetMax: ex.targetMax ?? 0,
+        harder: hard,
+      );
+      if (advice.outcome == ProgressionOutcome.keepTarget) continue;
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: AppCard(
+            highlight: advice.readyToStep,
+            child: Row(
+              children: [
+                Icon(
+                  advice.readyToStep ? Icons.trending_up : Icons.auto_graph,
+                  color: AppColors.accentLight,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    advice.message,
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return widgets;
   }
 
   String _dateLabel(DateTime utc) {

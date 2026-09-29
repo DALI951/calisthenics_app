@@ -14,6 +14,8 @@ import '../../features/exercises/presentation/exercise_search_screen.dart';
 import '../../features/friends/presentation/friends_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/progress/presentation/history_detail_screen.dart';
+import '../../features/progress/presentation/history_screen.dart';
 import '../../features/progress/presentation/progress_screen.dart';
 import '../../features/workout_session/presentation/rest_day_screen.dart';
 import '../../features/workout_session/presentation/workout_session_screen.dart';
@@ -161,6 +163,20 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/app/progress',
                 name: 'progress',
                 builder: (context, state) => const ProgressScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'history',
+                    name: 'history',
+                    builder: (context, state) => const HistoryScreen(),
+                  ),
+                  GoRoute(
+                    path: 'history/:sessionId',
+                    name: 'historyDetail',
+                    builder: (context, state) => HistoryDetailScreen(
+                      sessionId: state.pathParameters['sessionId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
