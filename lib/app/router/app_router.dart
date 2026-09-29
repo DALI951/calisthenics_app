@@ -36,8 +36,7 @@ class GoRouterNotifier extends ChangeNotifier {
 
   Future<String?> redirect(BuildContext context, GoRouterState state) async {
     final user = _ref.read(authControllerProvider).value;
-    final onboardingDone =
-        _ref.read(onboardingControllerProvider).value ?? false;
+    final onboarding = _ref.read(onboardingControllerProvider);
 
     final path = state.matchedLocation;
     final onAuth = path.startsWith('/auth');
@@ -46,6 +45,12 @@ class GoRouterNotifier extends ChangeNotifier {
     if (user == null) {
       return onAuth ? null : '/auth';
     }
+
+    // While the persisted flags are still loading we do NOT decide. Treating
+    // "loading" as "not onboarded" used to kick a half-finished setup back to
+    // the first onboarding step whenever the provider reloaded.
+    if (onboarding.isLoading) return null;
+    final onboardingDone = onboarding.value ?? false;
 
     // Signed in but never onboarded → onboarding.
     if (!onboardingDone) {

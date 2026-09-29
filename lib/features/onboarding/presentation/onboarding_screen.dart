@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/constants/app_ids.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../auth/data/auth_providers.dart';
 import '../../exercises/domain/exercise_enums.dart';
 import '../domain/onboarding_answers.dart';
 import 'onboarding_providers.dart';
@@ -26,6 +29,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _step = 0;
   bool _completing = false;
+  bool _restored = false;
 
   static const _titles = [
     'Experience level',
@@ -36,15 +40,79 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     'Your plan is ready',
   ];
 
+  static const _stepKey = '${AppIds.prefPrefix}onboarding.step.v1';
+
+  @override
+  void initState() {
+    super.initState();
+    // Resume where this person left off. Anything that rebuilds this screen
+    // now keeps the wizard exactly where it was, answers included.
+    _restore();
+  }
+
+  Future<void> _restore() async {
+    final prefs = await SharedPreferences.getInstance();
+    await ref.read(onboardingDraftProvider.notifier).restoreFromDisk();
+    final savedStep = prefs.getInt(_stepKey);
+    if (!mounted) return;
+    setState(() {
+      _step = (savedStep ?? 0).clamp(0, _titles.length - 1);
+      _restored = true;
+    });
+  }
+
+  void _persistStep() {
+    SharedPreferences.getInstance()
+        .then((p) => p.setInt(_stepKey, _step))
+        .ignore();
+  }
+
   void _next() {
-    if (_step < _titles.length - 1) setState(() => _step++);
+    if (_step < _titles.length - 1) {
+      setState(() => _step++);
+      _persistStep();
+    }
   }
 
   void _back() {
     if (_step > 0) {
       setState(() => _step--);
+      _persistStep();
     } else {
-      Navigator.of(context).maybePop();
+      // There is nowhere to go back to, and popping here used to bounce the
+      // user into a brand-new wizard at step 0. Offer the one real exit.
+      _confirmSignOut();
+    }
+  }
+
+  Future<void> _confirmSignOut() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Stop setting up?'),
+        content: const Text(
+          'Your progress is saved, so you can pick this up later without '
+          'starting over.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep setting up'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true) {
+      await ref.read(onboardingControllerProvider.notifier).reset();
+      await ref.read(onboardingDraftProvider.notifier).clearDraft();
+      await SharedPreferences.getInstance().then((p) => p.remove(_stepKey));
+      if (mounted) {
+        await ref.read(authControllerProvider.notifier).signOut();
+      }
     }
   }
 
@@ -54,6 +122,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref
         .read(onboardingControllerProvider.notifier)
         .complete(answers.copyWith(safetyAcknowledged: true));
+    // The wizard is done — drop the resume point so a later "reset" really is
+    // a clean start.
+    await ref.read(onboardingDraftProvider.notifier).clearDraft();
+    await SharedPreferences.getInstance().then((p) => p.remove(_stepKey));
     if (mounted) setState(() => _completing = false);
     // Router redirect moves to /app/home.
   }
@@ -102,8 +174,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: Row(
                   children: [
                     AppSecondaryButton(
-                      label: _step == 0 ? 'Cancel' : 'Back',
-                      onPressed: _completing ? null : _back,
+                      label: _step == 0 ? 'Sign out' : 'Back',
+                      onPressed: _completing || !_restored ? null : _back,
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
