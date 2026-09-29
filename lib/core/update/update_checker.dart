@@ -66,6 +66,24 @@ class AppRelease {
     );
   }
 
+  /// Parses the small public manifest published by CI:
+  ///   { "version": "v0.1.16+1", "apk": "https://…", "notes": "https://…" }
+  static AppRelease? fromManifestJson(Map<String, Object?> json) {
+    final version = json['version'];
+    if (version is! String || version.isEmpty) return null;
+    final parsed = _versionOf(version);
+    if (parsed == null) return null;
+    final apk = json['apk'];
+    return AppRelease(
+      tag: version,
+      version: parsed,
+      build: _buildOf(version),
+      apkUrl: apk is String ? apk : '',
+      apkName: apk is String ? apk.split('/').last : '',
+      notes: json['notes'] is String ? json['notes'] as String : '',
+    );
+  }
+
   /// `v0.1.13+1` -> `0.1.13`.
   static String? _versionOf(String tag) {
     final m = RegExp(r'^v?(\d+)\.(\d+)\.(\d+)').firstMatch(tag.trim());

@@ -136,4 +136,36 @@ void main() {
       );
     });
   });
+
+  // The repo is private, so the GitHub API 404s for the app. The public
+  // manifest is what makes the in-app check work at all.
+  test('parses the public manifest published by CI', () {
+    final release = AppRelease.fromManifestJson({
+      'version': 'v0.1.16+1',
+      'apk': 'https://example.com/calisthenics_app-v0.1.16+1.apk',
+      'notes':
+          'https://github.com/DALI951/calisthenics_app/releases/tag/v0.1.16+1',
+    });
+    expect(release, isNotNull);
+    expect(release!.version, '0.1.16');
+    expect(release.build, 1);
+    expect(release.hasApk, isTrue);
+    expect(release.apkName, 'calisthenics_app-v0.1.16+1.apk');
+  });
+
+  test('a manifest without an apk is reported as such, not as no update', () {
+    final release = AppRelease.fromManifestJson({'version': 'v0.2.0+1'});
+    expect(release, isNotNull);
+    final decision = const UpdateChecker().compare(
+      current: '0.1.16+1',
+      release: release,
+    );
+    expect(decision.check, UpdateCheck.updateWithoutApk);
+  });
+
+  test('a malformed manifest yields null instead of throwing', () {
+    expect(AppRelease.fromManifestJson({'apk': 'x'}), isNull);
+    expect(AppRelease.fromManifestJson({'version': ''}), isNull);
+    expect(AppRelease.fromManifestJson({}), isNull);
+  });
 }

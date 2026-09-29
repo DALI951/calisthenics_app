@@ -19,33 +19,71 @@ class UpdateService {
   static const repoName = 'calisthenics_app';
   static const _userAgent = 'calisthenics-app-updater';
 
+  /// Public release manifest, when one is published.
+  ///
+  /// The repo is PRIVATE, so `api.github.com` answers 404 to an app that has no
+  /// token — the old updater therefore NEVER found a release and blamed the
+  /// connection. A plain JSON file on a public host needs no auth at all and
+  /// works either way. Set it at build time:
+  ///   --dart-define=UPDATE_MANIFEST_URL=https://…/latest.json
+  static const manifestUrl = String.fromEnvironment('UPDATE_MANIFEST_URL');
+
   /// `version+build` of the running app, e.g. `0.1.13+1`.
   Future<String> currentVersion() async {
     final info = await PackageInfo.fromPlatform();
     return '${info.version}+${info.buildNumber}';
   }
 
-  /// Android application id, used to build the FileProvider content URI.
-  Future<String> packageName() async =>
-      (await PackageInfo.fromPlatform()).packageName;
-
   /// Latest published release, or null if it cannot be read.
+  ///
+  /// Manifest first (public, unauthenticated, always current), then the GitHub
+  /// API (works if the repo ever goes public). Every failure returns null so
+  /// the UI can explain itself rather than crash.
   Future<AppRelease?> latestRelease() async {
-    final uri = Uri.https(
-      'api.github.com',
-      '/repos/$repoOwner/$repoName/releases/latest',
-    );
-    final res = await _client.get(
-      uri,
-      headers: const {
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': _userAgent,
-      },
-    );
-    if (res.statusCode != 200) return null;
-    final decoded = jsonDecode(res.body);
-    if (decoded is! Map) return null;
-    return AppRelease.fromGitHubJson(decoded.cast<String, Object?>());
+    if (manifestUrl.isNotEmpty) {
+      final fromManifest = await _fromManifest(manifestUrl);
+      if (fromManifest != null) return fromManifest;
+    }
+    return _fromGitHubApi();
+  }
+
+  Future<AppRelease?> _fromManifest(String url) async {
+    try {
+      final res = await _client.get(
+        Uri.parse(url),
+        headers: const {'Accept': 'application/json', 'User-Agent': _userAgent},
+      );
+      if (res.statusCode != 200) return null;
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map) return null;
+      return AppRelease.fromManifestJson(decoded.cast<String, Object?>());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<AppRelease?> _fromGitHubApi() async {
+    try {
+      final uri = Uri.https(
+        'api.github.com',
+        '/repos/$repoOwner/$repoName/releases/latest',
+      );
+      final res = await _client.get(
+        uri,
+        headers: const {
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': _userAgent,
+        },
+      );
+      // 404 on a private repo without a token. That is expected, not an error
+      // worth shouting about.
+      if (res.statusCode != 200) return null;
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map) return null;
+      return AppRelease.fromGitHubJson(decoded.cast<String, Object?>());
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Downloads [url] to the app's cache, reporting 0..1 progress.

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -64,7 +65,7 @@ class UpdateController extends _$UpdateController {
   @override
   UpdateState build() => const UpdateIdle();
 
-  /// Checks GitHub for a newer release. Never throws at the UI.
+  /// Checks for a newer release. Never throws at the UI.
   Future<void> check() async {
     if (state is UpdateChecking) return;
     state = const UpdateChecking();
@@ -72,8 +73,16 @@ class UpdateController extends _$UpdateController {
       final svc = ref.read(updateServiceProvider);
       final release = await svc.latestRelease();
       if (release == null) {
-        state = UpdateDone(
-          const UpdateChecker().compare(current: '0.0.0', release: null),
+        // The repo is private, so an unauthenticated GitHub API call 404s.
+        // Say THAT instead of pretending it was a bad connection, and point
+        // the user at something that actually works.
+        state = const UpdateDone(
+          UpdateDecision(
+            UpdateCheck.checkFailed,
+            reason:
+                'Automatic checks need a public download link. Open the '
+                'releases page to download the newest version.',
+          ),
         );
         return;
       }
@@ -117,22 +126,21 @@ class UpdateController extends _$UpdateController {
 
   /// Hands the APK to the system installer.
   ///
-  /// Android blocks raw `file://` intents, so the cache file is shared through
-  /// the app's FileProvider (`content://<pkg>.fileprovider/updates/<name>`).
-  /// If even that is refused, the release page opens instead — the user is
-  /// never left staring at a button that did nothing.
+  /// The intent is built on the Android side (see UpdateInstallerChannel)
+  /// because it needs the APK MIME type and FLAG_GRANT_READ_URI_PERMISSION.
+  /// A content:// URI launched through url_launcher without that grant cannot
+  /// be read, and the install dies silently as "App not installed".
   Future<void> install() async {
     final ready = state;
     if (ready is! UpdateReadyToInstall) return;
-    final name = Uri.encodeComponent(ready.file.uri.pathSegments.last);
 
     var opened = false;
     try {
-      final pkg = await ref.read(updateServiceProvider).packageName();
-      opened = await launchUrl(
-        Uri.parse('content://$pkg.fileprovider/updates/$name'),
-        mode: LaunchMode.externalApplication,
-      );
+      opened =
+          await _channel.invokeMethod<bool>('installApk', {
+            'path': ready.file.path,
+          }) ??
+          false;
     } catch (_) {
       opened = false;
     }
@@ -145,6 +153,12 @@ class UpdateController extends _$UpdateController {
     }
   }
 
+  static const _channel = MethodChannel(
+    'com.dali951.calisthenics_app/update_installer',
+  );
+
+  /// Opens the release page in a browser, where the user's own GitHub session
+  /// (if any) can authorise the private download.
   Future<bool> _openReleasePage() async {
     final page =
         'https://github.com/${UpdateService.repoOwner}/'

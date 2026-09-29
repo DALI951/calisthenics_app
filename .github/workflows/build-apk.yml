@@ -57,6 +57,30 @@ jobs:
             echo "No GOOGLE_SERVICES_JSON secret set — building without Firebase config (backend-unavailable mode)."
           fi
 
+      - name: Set up release signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.CALISTHENICS_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.CALISTHENICS_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.CALISTHENICS_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.CALISTHENICS_KEY_PASSWORD }}
+        run: |
+          # One stable keystore for every release. Without this the runner's
+          # throwaway debug key signs each build and Android then refuses to
+          # install the update over the previous one.
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::No CALISTHENICS_KEYSTORE_BASE64 secret — falling back to the debug key. Android will refuse to install this over the last release."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > android/calisthenics-release.jks
+          cat > android/key.properties <<EOF
+          CALISTHENICS_STORE_FILE=calisthenics-release.jks
+          CALISTHENICS_STORE_PASSWORD=$STORE_PASSWORD
+          CALISTHENICS_KEY_ALIAS=$KEY_ALIAS
+          CALISTHENICS_KEY_PASSWORD=$KEY_PASSWORD
+          EOF
+          sed -i 's/^          //' android/key.properties
+          echo "Release signing key configured (alias $KEY_ALIAS)."
+
       - name: Build release APK
         run: flutter build apk --release --dart-define=APP_ENV=prod
 
@@ -71,4 +95,23 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "Calisthenics $VER" \
             --notes "Auto-built by GitHub Actions on every push. Sign in with email or Google; the workout program and 27-exercise library are inside." \
+            --latest \
             --generate-notes
+
+          # Public manifest for the in-app updater. The repo is PRIVATE, so the
+          # app cannot read /releases/latest from GitHub's API without a token —
+          # it reads this file instead. Same content, no auth required.
+          RUN_ID="${{ github.run_id }}"
+          {
+            echo '{'
+            echo "  \"version\": \"$VER\","
+            echo "  \"build\": \"$(grep -oP '(?<=^version: ).*' pubspec.yaml | cut -d+ -f2)\","
+            echo "  \"apk\": \"https://github.com/${{ github.repository }}/releases/download/$VER/calisthenics_app-$VER.apk\","
+            echo "  \"notes\": \"https://github.com/${{ github.repository }}/releases/tag/$VER\""
+            echo '}'
+          } > latest.json
+          gh api "repos/${{ github.repository }}/contents/latest.json" \
+            --method PUT \
+            --field message="chore: update manifest to $VER (run $RUN_ID)" \
+            --field content="$(base64 -w0 latest.json)" \
+            --silent && echo "latest.json published for $VER"
