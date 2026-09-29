@@ -43,7 +43,7 @@ class _DayEditorScreenState extends ConsumerState<DayEditorScreen> {
   Widget build(BuildContext context) {
     final program =
         ref.watch(activeProgramControllerProvider).value ??
-        ProgramRegistry.beginner;
+        ProgramRegistry.blank;
     final day = program.days.firstWhere(
       (d) => d.dayNumber == widget.dayNumber,
       orElse: () => program.days.first,

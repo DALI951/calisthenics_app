@@ -37,7 +37,7 @@ class ExerciseDetailScreen extends ConsumerWidget {
 
     // Where this movement appears in the current program (recommended
     // sets/reps + rest come from the plan, so they never drift, §60).
-    final plans = ProgramRegistry.beginner.days
+    final plans = ProgramRegistry.blank.days
         .where((d) => d.exercises.any((e) => e.exerciseId == exercise.id))
         .map(
           (d) =>

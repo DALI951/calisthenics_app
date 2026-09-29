@@ -29,7 +29,7 @@ class WorkoutsScreen extends ConsumerWidget {
     // point of an editable week.
     ctrl.start(
       ref.read(activeProgramControllerProvider).value ??
-          ProgramRegistry.beginner,
+          ProgramRegistry.blank,
       day,
     );
     context.push('/app/workouts/session');
@@ -40,7 +40,7 @@ class WorkoutsScreen extends ConsumerWidget {
   void _chooseDay(BuildContext context, WidgetRef ref) {
     final program =
         ref.read(activeProgramControllerProvider).value ??
-        ProgramRegistry.beginner;
+        ProgramRegistry.blank;
     final days =
         program.days.where((d) => d.type == ProgramDayType.training).toList()
           ..sort((a, b) => a.dayNumber.compareTo(b.dayNumber));
@@ -112,7 +112,7 @@ class WorkoutsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final program =
         ref.watch(activeProgramControllerProvider).value ??
-        ProgramRegistry.beginner;
+        ProgramRegistry.blank;
     final todaySlot = DateTime.now().weekday;
     final today = program.dayAt(todaySlot);
     final isRestDay = today.type == ProgramDayType.rest;
@@ -179,9 +179,15 @@ class WorkoutsScreen extends ConsumerWidget {
                         : 'Start today\'s workout',
                   ),
                 ),
-                // Never make the athlete wait for "their" day: any training
-                // day in their own program is one tap away, any day of the week.
+                // No preset split and no waiting for your day: build the plan
+                // for this session right now.
                 if (activeSession == null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  FilledButton.icon(
+                    onPressed: () => context.push('/app/workouts/build'),
+                    icon: const Icon(Icons.add_task, size: 18),
+                    label: const Text('Build my session'),
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   OutlinedButton.icon(
                     onPressed: () => _chooseDay(context, ref),

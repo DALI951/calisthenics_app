@@ -15,6 +15,7 @@ import '../../workout_session/domain/personal_records.dart';
 import '../../workout_session/presentation/workout_session_controller.dart';
 import '../../../core/widgets/sync_status_chip.dart';
 import '../../../core/widgets/update_banner.dart';
+import '../../workouts/data/active_program_controller.dart';
 import '../../workouts/data/program_registry.dart';
 import '../../workouts/domain/workout_program.dart';
 
@@ -38,8 +39,14 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).value;
-    final today = ProgramRegistry.beginner.dayAt(DateTime.now().weekday);
+    // The athlete's own week, which starts empty. Fall back to the blank week
+    // so a first launch shows an honest "nothing programmed yet" instead of a
+    // preset they did not ask for.
+    final program =
+        ref.watch(activeProgramControllerProvider).value ?? ProgramRegistry.blank;
+    final today = program.dayAt(DateTime.now().weekday);
     final isRestDay = today.type == ProgramDayType.rest;
+    final nothingPlanned = program.days.every((d) => d.exercises.isEmpty);
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
 
     final activeSession = ref.watch(workoutSessionControllerProvider);
@@ -52,12 +59,18 @@ class HomeScreen extends ConsumerWidget {
     ); // Phase 10 real levels
 
     void startToday() {
-      final ctrl = ref.read(workoutSessionControllerProvider.notifier);
       if (activeSession != null) {
         context.push('/app/workouts/session');
         return;
       }
-      ctrl.start(ProgramRegistry.beginner, today);
+      // Nothing programmed for today -> build the session instead of opening an
+      // empty workout.
+      if (today.exercises.isEmpty) {
+        context.push('/app/workouts/build');
+        return;
+      }
+      final ctrl = ref.read(workoutSessionControllerProvider.notifier);
+      ctrl.start(program, today);
       context.push('/app/workouts/session');
     }
 
@@ -76,6 +89,8 @@ class HomeScreen extends ConsumerWidget {
           Text(
             activeSession != null
                 ? 'You have a workout in progress — pick up where you left off.'
+                : nothingPlanned
+                ? 'No plan yet. Build the session you are training today.'
                 : 'One workout at a time. Today: ${today.name}.',
             style: AppTypography.body.apply(color: secondary),
           ),
@@ -157,6 +172,8 @@ class HomeScreen extends ConsumerWidget {
                   icon: Icon(
                     activeSession != null
                         ? Icons.play_arrow
+                        : nothingPlanned || today.exercises.isEmpty
+                        ? Icons.add_task
                         : isRestDay
                         ? Icons.self_improvement
                         : Icons.play_arrow,
@@ -164,6 +181,8 @@ class HomeScreen extends ConsumerWidget {
                   label: Text(
                     activeSession != null
                         ? 'Resume workout'
+                        : nothingPlanned || today.exercises.isEmpty
+                        ? 'Build my session'
                         : isRestDay
                         ? 'See today\'s recovery'
                         : 'Start today\'s workout',

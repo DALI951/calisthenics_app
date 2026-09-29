@@ -39,19 +39,36 @@ class UpdateBanner extends ConsumerWidget {
     }
 
     if (state is UpdateReadyToInstall) {
+      // The APK is downloaded; the phone still has to allow the install. Name
+      // that permission up front, because "it did nothing" is the usual
+      // failure and the setting lives somewhere nobody thinks to look.
       return _Bar(
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                'Update downloaded. Open the installer to finish.',
-                style: AppTypography.caption,
-              ),
+            Text(
+              'Update downloaded. Tap Install, then allow "Install unknown apps"'
+              ' for Calisthenics if your phone asks.',
+              style: AppTypography.caption,
             ),
-            TextButton(
-              onPressed: () =>
-                  ref.read(updateControllerProvider.notifier).install(),
-              child: const Text('Install'),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                FilledButton(
+                  onPressed: () =>
+                      ref.read(updateControllerProvider.notifier).install(),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Install update'),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                TextButton(
+                  onPressed: () =>
+                      ref.read(updateControllerProvider.notifier).reset(),
+                  child: const Text('Later'),
+                ),
+              ],
             ),
           ],
         ),

@@ -84,7 +84,7 @@ void main() {
   });
 
   group('ProgramRegistry (spec §9)', () {
-    final program = ProgramRegistry.beginner;
+    final program = ProgramRegistry.blank;
 
     test('is a 7-day cycle with days ordered 1..7', () {
       expect(program.days.length, 7);
@@ -93,27 +93,21 @@ void main() {
       }
     });
 
-    test('4 training + 3 rest days', () {
+    test('ships no preset split — every day starts as rest', () {
       final trainings = program.days.where(
         (d) => d.type == ProgramDayType.training,
       );
       final rests = program.days.where((d) => d.type == ProgramDayType.rest);
-      expect(trainings.length, 4);
-      expect(rests.length, 3);
+      expect(trainings, isEmpty, reason: 'no forced training days');
+      expect(rests.length, 7);
     });
 
-    test('hits the exact spec split: Push, Pull, Rest, Legs, Full Body, Rest, Rest', () {
-      final names = program.days
-          .map((d) => '${d.dayNumber}:${d.name}')
-          .join(' | ');
-      expect(program.dayAt(1).name, 'Push + Core');
-      expect(program.dayAt(2).name, 'Pull + Core');
-      expect(program.dayAt(3).name, 'Rest');
-      expect(program.dayAt(4).name, 'Legs + Core');
-      expect(program.dayAt(5).name, 'Full Body');
-      expect(program.dayAt(6).name, 'Rest');
-      expect(program.dayAt(7).name, 'Rest');
-      expect(names, isNotEmpty);
+    test('starts with nothing programmed in any day', () {
+      expect(program.days.every((d) => d.exercises.isEmpty), isTrue);
+      expect(
+        program.days.every((d) => d.name == 'Rest'),
+        isTrue,
+      );
     });
 
     test(
@@ -161,26 +155,31 @@ void main() {
       },
     );
 
-    test("nextTrainingDayFrom skips rest days", () {
-      // day 3 is rest → next training day is day 4.
-      expect(program.nextTrainingDayFrom(3).dayNumber, 4);
-      // day 7 is rest → wraps to day 1.
-      expect(program.nextTrainingDayFrom(7).dayNumber, 1);
-      // a training day returns itself.
-      expect(program.nextTrainingDayFrom(1).dayNumber, 1);
+    test("nextTrainingDayFrom is honest when no day is programmed", () {
+      // Nothing is a training day, so it must not invent one.
+      expect(() => program.nextTrainingDayFrom(3), throwsA(anything));
     });
 
     test('targetLabel renders like "4 × 8–15" and "3 × 20–40s"', () {
-      final pushups = program.dayAt(1).exercises.first;
-      expect(pushups.sets, 4);
+      const pushups = PlannedExercise(
+        exerciseId: 'pushup',
+        sets: 4,
+        targetMin: 8,
+        targetMax: 15,
+      );
       expect(pushups.targetLabel, '4 × 8–15');
-      final plank = program.dayAt(2).exercises[4];
-      expect(plank.targetLabel, '3 × 30–60s');
+      const plank = PlannedExercise(
+        exerciseId: 'plank',
+        sets: 3,
+        targetSecondsMin: 20,
+        targetSecondsMax: 40,
+      );
+      expect(plank.targetLabel, '3 × 20–40s');
     });
 
-    test('byId lookup finds the beginner program', () {
+    test('byId lookup finds the blank program', () {
       expect(
-        ProgramRegistry.byId(ProgramRegistry.beginnerProgramId),
+        ProgramRegistry.byId(ProgramRegistry.blankProgramId),
         same(program),
       );
     });

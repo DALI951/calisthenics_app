@@ -20,12 +20,33 @@ void main() {
   }
 
   group('program customization', () {
-    test('starts from the built-in program when nothing is saved', () async {
+    test('starts EMPTY when nothing is saved — no preset training', () async {
       final c = boot();
+      final p = await c.read(activeProgramControllerProvider.future);
+      expect(p, ProgramRegistry.blank);
+      // The whole point: nothing is programmed until the athlete programmes it.
+      expect(p.days.every((d) => d.exercises.isEmpty), isTrue);
+      expect(p.days.every((d) => d.type == ProgramDayType.rest), isTrue);
+    });
+
+    test('the shared blank program is never mutated by an edit', () async {
+      final c = boot();
+      await c.read(activeProgramControllerProvider.future);
+      c.read(activeProgramControllerProvider.notifier)
+          .updateDay(1, (d) => d.copyWith(
+                type: ProgramDayType.training,
+                name: 'Legs',
+                exercises: const [
+                  PlannedExercise(exerciseId: 'squat', sets: 4, targetMin: 5),
+                ],
+              ));
+      final p = await c.read(activeProgramControllerProvider.future);
       expect(
-        await c.read(activeProgramControllerProvider.future),
-        ProgramRegistry.beginner,
+        p.days.firstWhere((d) => d.dayNumber == 1).exercises.length,
+        1,
       );
+      expect(ProgramRegistry.blank.days.first.exercises, isEmpty,
+          reason: 'the global default must stay clean');
     });
 
     test('a day can be turned into a rest day and back', () async {
@@ -92,20 +113,31 @@ void main() {
       final p = await c.read(activeProgramControllerProvider.future);
       expect(
         p.days.firstWhere((d) => d.dayNumber == 1).name,
-        ProgramRegistry.beginner.days.firstWhere((d) => d.dayNumber == 1).name,
+        ProgramRegistry.blank.days.firstWhere((d) => d.dayNumber == 1).name,
       );
     });
 
     test('a corrupt saved program never blocks training', () async {
       final c = boot({programKey: 'not json {{{'});
       final p = await c.read(activeProgramControllerProvider.future);
-      expect(p.id, ProgramRegistry.beginner.id);
+      expect(p.id, ProgramRegistry.blank.id);
     });
 
     test('a day can be edited exercise by exercise', () async {
       final c = boot();
       await c.read(activeProgramControllerProvider.future);
       final notifier = c.read(activeProgramControllerProvider.notifier);
+      // Nothing is pre-programmed, so the athlete adds the day first.
+      notifier.updateDay(
+        1,
+        (d) => d.copyWith(
+          type: ProgramDayType.training,
+          exercises: const [
+            PlannedExercise(exerciseId: 'pushup', sets: 3, targetMin: 8),
+            PlannedExercise(exerciseId: 'dip', sets: 3, targetMin: 6),
+          ],
+        ),
+      );
       final first = (await c.read(activeProgramControllerProvider.future)).days
           .firstWhere((d) => d.dayNumber == 1)
           .exercises
@@ -137,6 +169,15 @@ void main() {
       final c = boot();
       await c.read(activeProgramControllerProvider.future);
       final notifier = c.read(activeProgramControllerProvider.notifier);
+      notifier.updateDay(
+        1,
+        (d) => d.copyWith(
+          exercises: const [
+            PlannedExercise(exerciseId: 'pushup', sets: 3, targetMin: 8),
+            PlannedExercise(exerciseId: 'dip', sets: 3, targetMin: 6),
+          ],
+        ),
+      );
       final target = (await c.read(activeProgramControllerProvider.future)).days
           .firstWhere((d) => d.dayNumber == 1)
           .exercises

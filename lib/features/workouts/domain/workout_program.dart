@@ -113,12 +113,29 @@ abstract class WorkoutProgram with _$WorkoutProgram {
 
   /// The training day for `weekdaySlot`, or the next one if it's a rest day
   /// (self-inclusive: a training day maps to itself, e.g. "what trains today").
+  /// The next training day on or after [weekdaySlot], wrapping the week.
+  ///
+  /// Throws when the week has no training day at all — an empty program is a
+  /// real state now that there is no preset, and silently returning a rest day
+  /// would send the athlete to an empty session.
   ProgramDay nextTrainingDayFrom(int weekdaySlot) {
     for (var i = 0; i < 7; i++) {
       final slot = ((weekdaySlot - 1 + i) % 7) + 1;
       final day = dayAt(slot);
       if (day.type == ProgramDayType.training) return day;
     }
-    return dayAt(weekdaySlot);
+    throw StateError(
+      'This week has no training days yet. Build a session or programme a day.',
+    );
+  }
+
+  /// First training day in the week, or null when nothing is programmed.
+  ProgramDay? get firstTrainingDay {
+    for (final d in days) {
+      if (d.type == ProgramDayType.training && d.exercises.isNotEmpty) {
+        return d;
+      }
+    }
+    return null;
   }
 }

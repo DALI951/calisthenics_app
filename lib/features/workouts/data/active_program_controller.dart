@@ -24,18 +24,18 @@ class ActiveProgramController extends _$ActiveProgramController {
   Future<WorkoutProgram> build() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
-    if (raw == null) return ProgramRegistry.beginner;
+    if (raw == null) return ProgramRegistry.blank;
     try {
       return WorkoutProgram.fromJson(
         (jsonDecode(raw) as Map).cast<String, Object?>(),
       );
     } catch (_) {
-      return ProgramRegistry.beginner;
+      return ProgramRegistry.blank;
     }
   }
 
   bool isCustom() =>
-      state.hasValue && state.value!.id != ProgramRegistry.beginner.id;
+      state.hasValue && state.value!.id != ProgramRegistry.blank.id;
 
   void _apply(WorkoutProgram program) {
     state = AsyncData(program);
@@ -130,7 +130,7 @@ class ActiveProgramController extends _$ActiveProgramController {
   }
 
   void resetToDefault() {
-    state = AsyncData(ProgramRegistry.beginner);
+    state = AsyncData(ProgramRegistry.blank);
     SharedPreferences.getInstance().then((p) => p.remove(_key)).ignore();
   }
 }

@@ -20,7 +20,7 @@ class ProgramEditorScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final program =
         ref.watch(activeProgramControllerProvider).value ??
-        ProgramRegistry.beginner;
+        ProgramRegistry.blank;
     final ctrl = ref.read(activeProgramControllerProvider.notifier);
     final secondary = Theme.of(context).colorScheme.onSurfaceVariant;
 

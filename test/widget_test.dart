@@ -49,14 +49,15 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
-    // Tab shell is visible with today's plan. The primary button label
-    // depends on the day type: training day → start, rest day → recovery.
+    // Tab shell is visible. There is no preset program any more, so a fresh
+    // account has an empty week and the primary action builds a session.
     expect(find.text('Calisthenics'), findsOneWidget);
     expect(find.text('Workouts'), findsWidgets);
     final hasPrimaryAction =
         find.text('Start today\'s workout').evaluate().isNotEmpty ||
         find.text('See today\'s recovery').evaluate().isNotEmpty ||
-        find.text('Resume workout').evaluate().isNotEmpty;
+        find.text('Resume workout').evaluate().isNotEmpty ||
+        find.text('Build my session').evaluate().isNotEmpty;
     expect(
       hasPrimaryAction,
       isTrue,

@@ -24,6 +24,7 @@ import '../../features/workout_session/presentation/workout_session_screen.dart'
 import '../../features/workout_session/presentation/workout_summary_screen.dart';
 import '../../features/workouts/presentation/day_editor_screen.dart';
 import '../../features/workouts/presentation/program_editor_screen.dart';
+import '../../features/workouts/presentation/session_builder_screen.dart';
 import '../../features/workouts/presentation/workouts_screen.dart';
 import 'app_shell.dart';
 
@@ -240,6 +241,11 @@ Provider<GoRouter> appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => DayEditorScreen(
           dayNumber: int.tryParse(state.pathParameters['dayNumber'] ?? '') ?? 1,
         ),
+      ),
+      GoRoute(
+        path: '/app/workouts/build',
+        name: 'sessionBuilder',
+        builder: (context, state) => const SessionBuilderScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

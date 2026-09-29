@@ -120,7 +120,10 @@ class UpdateController extends _$UpdateController {
           );
       state = UpdateReadyToInstall(file, release);
     } catch (e) {
-      state = UpdateFailed('Download failed. Check your connection and retry.');
+      state = UpdateFailed(
+        'Could not download the update. Check your connection and retry — if it '
+        'keeps failing, download the APK from the releases page instead.',
+      );
     }
   }
 
