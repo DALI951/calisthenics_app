@@ -157,18 +157,65 @@ class FirebaseAuthRepository implements AuthRepository {
           'Google sign-in was cancelled.',
         );
       }
-      return AuthFailure(
-        'google-sign-in-failed',
-        'Could not complete Google sign-in.',
-        debugDetails: error.description,
+      return _googleFailure(
+        error.code.name,
+        error.description ?? '',
+        debug: 'GoogleSignInException',
       );
     }
-    if (error is PlatformException && error.code == 'sign_in_canceled') {
-      return const AuthFailure(
-        'sign-in-cancelled',
-        'Google sign-in was cancelled.',
+    if (error is PlatformException) {
+      if (error.code == 'sign_in_canceled') {
+        return const AuthFailure(
+          'sign-in-cancelled',
+          'Google sign-in was cancelled.',
+        );
+      }
+      // Play Services reports the real cause as a status code; "10" is
+      // DEVELOPER_ERROR, which for this app means the signing fingerprint is
+      // not registered in Firebase. Saying that beats "something went wrong".
+      return _googleFailure(
+        error.code,
+        '${error.message ?? ''} ${error.details ?? ''}',
+        debug: 'PlatformException',
       );
     }
     return const NetworkFailure();
+  }
+
+  /// Turns a Google failure into something the athlete can act on.
+  ///
+  /// Matched on text rather than an enum so it survives plugin upgrades and
+  /// still works for Play Services status codes the plugin may not name.
+  AppFailure _googleFailure(String code, String detail, {required String debug}) {
+    final text = '$code $detail'.toLowerCase();
+
+    // DEVELOPER_ERROR / status 10 / "client configuration error": the app's
+    // signing certificate is not in Firebase.
+    if (text.contains('developer') ||
+        text.contains('configuration') ||
+        text.contains('status: 10') ||
+        RegExp(r'\b10\b').hasMatch(text)) {
+      return AuthFailure(
+        'google-fingerprint-not-registered',
+        'This build is not registered with Google yet. Add its SHA-1 and '
+        'SHA-256 fingerprints in the Firebase console, then try again.',
+        debugDetails: debug,
+      );
+    }
+    if (text.contains('network') || text.contains('timeout')) {
+      return const NetworkFailure();
+    }
+    if (text.contains('play services') || text.contains('update')) {
+      return const AuthFailure(
+        'play-services-outdated',
+        'Google Play services on this phone is too old. Update it from the '
+        'Play Store, then try again.',
+      );
+    }
+    return AuthFailure(
+      'google-sign-in-failed',
+      'Could not complete Google sign-in.',
+      debugDetails: debug,
+    );
   }
 }
